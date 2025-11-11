@@ -20,10 +20,15 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@clerk/backend": "^2.21.0",
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "^6.19.0",
+    "passport": "^0.7.0",
+    "passport-custom": "^1.1.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
