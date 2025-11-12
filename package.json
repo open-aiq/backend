@@ -26,6 +26,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.2.1",
     "@prisma/client": "^6.19.0",
     "passport": "^0.7.0",
     "passport-custom": "^1.1.1",
