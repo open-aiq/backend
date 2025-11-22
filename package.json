@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "open-aiq-api",
   "version": "0.0.1",
-  "description": "",
+  "description": "OpenAIQ (Open Air IQ): The main api for client facing dashboard and devices",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
