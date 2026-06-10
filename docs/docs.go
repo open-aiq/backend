@@ -158,12 +158,8 @@ const docTemplate = `{
         "airquality.CurrentResponse": {
             "type": "object",
             "properties": {
-                "current": {
+                "data": {
                     "$ref": "#/definitions/airquality.AirQuality"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "success"
                 }
             }
         },
@@ -175,18 +171,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/airquality.DataPoint"
                     }
-                },
-                "end_date": {
-                    "type": "string",
-                    "example": "2026-06-10"
-                },
-                "start_date": {
-                    "type": "string",
-                    "example": "2026-01-01"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "success"
                 }
             }
         },
@@ -217,44 +201,14 @@ const docTemplate = `{
                 }
             }
         },
-        "airquality.HistoricalData": {
-            "type": "object",
-            "properties": {
-                "daily_hourly": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/airquality.DataPoint"
-                    }
-                },
-                "monthly_weekly": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/airquality.DataPoint"
-                    }
-                },
-                "weekly_daily": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/airquality.DataPoint"
-                    }
-                },
-                "yearly_monthly": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/airquality.DataPoint"
-                    }
-                }
-            }
-        },
         "airquality.HistoricalResponse": {
             "type": "object",
             "properties": {
-                "historical": {
-                    "$ref": "#/definitions/airquality.HistoricalData"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "success"
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
                 },
                 "timeline": {
                     "type": "string",

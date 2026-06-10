@@ -31,14 +31,11 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) GetCurrent(c *gin.Context) {
 	current, err := h.service.GetCurrent(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current data"})
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get current data"})
 		return
 	}
 
-	c.IndentedJSON(http.StatusOK, gin.H{
-		"status":  "success",
-		"current": current,
-	})
+	c.IndentedJSON(http.StatusOK, CurrentResponse{Data: *current})
 }
 
 // GetHistorical godoc
@@ -59,24 +56,20 @@ func (h *Handler) GetHistorical(c *gin.Context) {
 	var query HistoricalQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid query parameters",
-			"details": "timeline is required and must be one of: daily, weekly, monthly, yearly",
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid query parameters",
+			Details: "timeline is required and must be one of: daily, weekly, monthly, yearly",
 		})
 		return
 	}
 
-	historical, err := h.service.GetHistorical(c.Request.Context(), query.Timeline)
+	data, err := h.service.GetHistorical(c.Request.Context(), query.Timeline)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get historical data"})
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get historical data"})
 		return
 	}
 
-	c.IndentedJSON(http.StatusOK, gin.H{
-		"status":     "success",
-		"timeline":   query.Timeline,
-		"historical": historical,
-	})
+	c.IndentedJSON(http.StatusOK, HistoricalResponse{Timeline: query.Timeline, Data: data})
 }
 
 // GetCustomRange godoc
@@ -98,40 +91,35 @@ func (h *Handler) GetCustomRange(c *gin.Context) {
 	var query CustomQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid query parameters",
-			"details": "start_date and end_date are required (YYYY-MM-DD)",
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid query parameters",
+			Details: "start_date and end_date are required (YYYY-MM-DD)",
 		})
 		return
 	}
 
 	start, err := time.Parse("2006-01-02", query.StartDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format, use YYYY-MM-DD"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid start_date format, use YYYY-MM-DD"})
 		return
 	}
 
 	end, err := time.Parse("2006-01-02", query.EndDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format, use YYYY-MM-DD"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid end_date format, use YYYY-MM-DD"})
 		return
 	}
 
 	if end.Before(start) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "end_date must be after start_date"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "end_date must be after start_date"})
 		return
 	}
 
 	data, err := h.service.GetCustomRange(c.Request.Context(), start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get custom range data"})
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get custom range data"})
 		return
 	}
 
-	c.IndentedJSON(http.StatusOK, gin.H{
-		"status":     "success",
-		"start_date": query.StartDate,
-		"end_date":   query.EndDate,
-		"data":       data,
-	})
+	c.IndentedJSON(http.StatusOK, CustomRangeResponse{Data: data})
 }

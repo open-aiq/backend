@@ -21,7 +21,7 @@ func (s *Service) GetCurrent(ctx context.Context) (*AirQuality, error) {
 }
 
 // GetHistorical returns historical air quality data based on the timeline filter.
-func (s *Service) GetHistorical(ctx context.Context, timeline string) (*HistoricalData, error) {
+func (s *Service) GetHistorical(ctx context.Context, timeline string) ([]DataPoint, error) {
 	return s.repo.GetHistorical(ctx, timeline)
 }
 
@@ -46,14 +46,14 @@ func (r *MockRepository) GetCurrent(_ context.Context) (*AirQuality, error) {
 	}, nil
 }
 
-func (r *MockRepository) GetHistorical(_ context.Context, timeline string) (*HistoricalData, error) {
-	historical := &HistoricalData{}
+func (r *MockRepository) GetHistorical(_ context.Context, timeline string) ([]DataPoint, error) {
 	now := time.Now()
+	var points []DataPoint
 
 	switch timeline {
 	case "daily":
 		for i := range 24 {
-			historical.DailyHourly = append(historical.DailyHourly, DataPoint{
+			points = append(points, DataPoint{
 				Timestamp: now.Add(time.Duration(-i) * time.Hour),
 				Label:     now.Add(time.Duration(-i) * time.Hour).Format("15:00"),
 				Metrics:   AirQuality{PM10: 11.0, PM25: 30.5, PM100: 40.0, AQI: 85},
@@ -62,7 +62,7 @@ func (r *MockRepository) GetHistorical(_ context.Context, timeline string) (*His
 	case "weekly":
 		days := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 		for i := range 7 {
-			historical.WeeklyDaily = append(historical.WeeklyDaily, DataPoint{
+			points = append(points, DataPoint{
 				Timestamp: now.AddDate(0, 0, -i),
 				Label:     days[int(now.AddDate(0, 0, -i).Weekday())],
 				Metrics:   AirQuality{PM10: 14.2, PM25: 42.1, PM100: 55.0, AQI: 110},
@@ -70,7 +70,7 @@ func (r *MockRepository) GetHistorical(_ context.Context, timeline string) (*His
 		}
 	case "monthly":
 		for i := 1; i <= 4; i++ {
-			historical.MonthlyWeekly = append(historical.MonthlyWeekly, DataPoint{
+			points = append(points, DataPoint{
 				Timestamp: now.AddDate(0, 0, -i*7),
 				Label:     "Week " + string(rune(53-i)),
 				Metrics:   AirQuality{PM10: 9.8, PM25: 22.4, PM100: 31.0, AQI: 72},
@@ -79,7 +79,7 @@ func (r *MockRepository) GetHistorical(_ context.Context, timeline string) (*His
 	case "yearly":
 		for i := range 12 {
 			t := now.AddDate(0, -i, 0)
-			historical.YearlyMonthly = append(historical.YearlyMonthly, DataPoint{
+			points = append(points, DataPoint{
 				Timestamp: t,
 				Label:     t.Format("January"),
 				Metrics:   AirQuality{PM10: 15.0, PM25: 55.0, PM100: 68.0, AQI: 145},
@@ -87,13 +87,12 @@ func (r *MockRepository) GetHistorical(_ context.Context, timeline string) (*His
 		}
 	}
 
-	return historical, nil
+	return points, nil
 }
 
 func (r *MockRepository) GetCustomRange(_ context.Context, start, end time.Time) ([]DataPoint, error) {
 	var points []DataPoint
 
-	// Generate one mock data point per day in the range
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		points = append(points, DataPoint{
 			Timestamp: d,

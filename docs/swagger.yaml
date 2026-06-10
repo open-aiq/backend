@@ -13,11 +13,8 @@ definitions:
     type: object
   airquality.CurrentResponse:
     properties:
-      current:
+      data:
         $ref: '#/definitions/airquality.AirQuality'
-      status:
-        example: success
-        type: string
     type: object
   airquality.CustomRangeResponse:
     properties:
@@ -25,15 +22,6 @@ definitions:
         items:
           $ref: '#/definitions/airquality.DataPoint'
         type: array
-      end_date:
-        example: "2026-06-10"
-        type: string
-      start_date:
-        example: "2026-01-01"
-        type: string
-      status:
-        example: success
-        type: string
     type: object
   airquality.DataPoint:
     properties:
@@ -53,32 +41,12 @@ definitions:
         example: Missing or invalid query parameters
         type: string
     type: object
-  airquality.HistoricalData:
-    properties:
-      daily_hourly:
-        items:
-          $ref: '#/definitions/airquality.DataPoint'
-        type: array
-      monthly_weekly:
-        items:
-          $ref: '#/definitions/airquality.DataPoint'
-        type: array
-      weekly_daily:
-        items:
-          $ref: '#/definitions/airquality.DataPoint'
-        type: array
-      yearly_monthly:
-        items:
-          $ref: '#/definitions/airquality.DataPoint'
-        type: array
-    type: object
   airquality.HistoricalResponse:
     properties:
-      historical:
-        $ref: '#/definitions/airquality.HistoricalData'
-      status:
-        example: success
-        type: string
+      data:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
       timeline:
         example: daily
         type: string

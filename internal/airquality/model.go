@@ -10,14 +10,6 @@ type AirQuality struct {
 	AQI   int     `json:"aqi"`
 }
 
-// HistoricalData wraps different time-series aggregations
-type HistoricalData struct {
-	DailyHourly   []DataPoint `json:"daily_hourly,omitempty"`
-	WeeklyDaily   []DataPoint `json:"weekly_daily,omitempty"`
-	MonthlyWeekly []DataPoint `json:"monthly_weekly,omitempty"`
-	YearlyMonthly []DataPoint `json:"yearly_monthly,omitempty"`
-}
-
 // DataPoint represents a single data point in a time series
 type DataPoint struct {
 	Timestamp time.Time  `json:"timestamp"`
@@ -39,21 +31,16 @@ type CustomQuery struct {
 // Response types for swagger documentation
 
 type CurrentResponse struct {
-	Status  string     `json:"status" example:"success"`
-	Current AirQuality `json:"current"`
+	Data AirQuality `json:"data"`
 }
 
 type HistoricalResponse struct {
-	Status     string         `json:"status" example:"success"`
-	Timeline   string         `json:"timeline" example:"daily"`
-	Historical HistoricalData `json:"historical"`
+	Timeline string      `json:"timeline" example:"daily"`
+	Data     []DataPoint `json:"data"`
 }
 
 type CustomRangeResponse struct {
-	Status    string      `json:"status" example:"success"`
-	StartDate string      `json:"start_date" example:"2026-01-01"`
-	EndDate   string      `json:"end_date" example:"2026-06-10"`
-	Data      []DataPoint `json:"data"`
+	Data []DataPoint `json:"data"`
 }
 
 type ErrorResponse struct {
