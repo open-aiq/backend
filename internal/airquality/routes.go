@@ -4,5 +4,10 @@ import "github.com/gin-gonic/gin"
 
 // RegisterRoutes registers air quality routes on the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.GET("/air-quality", h.GetAirQuality)
+	aq := rg.Group("/air-quality")
+	{
+		aq.GET("/current", h.GetCurrent)
+		aq.GET("/historical", h.GetHistorical)
+		aq.GET("/custom", h.GetCustomRange)
+	}
 }

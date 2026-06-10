@@ -6,15 +6,38 @@ info:
   title: Air Quality API
   version: "1.0"
 paths:
-  /air-quality:
+  /air-quality/current:
     get:
-      consumes:
+      description: Returns the latest air quality reading
+      produces:
       - application/json
-      description: Returns current and historical air quality information
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get current air quality
+      tags:
+      - Air Quality
+  /air-quality/custom:
+    get:
+      description: Returns air quality data points between start_date and end_date
       parameters:
-      - description: Timeline (daily, weekly, monthly, yearly, all)
+      - description: Start date (YYYY-MM-DD)
         in: query
-        name: timeline
+        name: start_date
+        required: true
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
         type: string
       produces:
       - application/json
@@ -29,7 +52,47 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Get air quality data
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get air quality data for a custom date range
+      tags:
+      - Air Quality
+  /air-quality/historical:
+    get:
+      description: Returns historical air quality data aggregated by timeline
+      parameters:
+      - description: Timeline
+        enum:
+        - daily
+        - weekly
+        - monthly
+        - yearly
+        in: query
+        name: timeline
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get historical air quality data
       tags:
       - Air Quality
 swagger: "2.0"

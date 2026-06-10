@@ -15,25 +15,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/air-quality": {
+        "/air-quality/current": {
             "get": {
-                "description": "Returns current and historical air quality information",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Returns the latest air quality reading",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Air Quality"
                 ],
-                "summary": "Get air quality data",
+                "summary": "Get current air quality",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/air-quality/custom": {
+            "get": {
+                "description": "Returns air quality data points between start_date and end_date",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get air quality data for a custom date range",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Timeline (daily, weekly, monthly, yearly, all)",
-                        "name": "timeline",
-                        "in": "query"
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -46,6 +79,63 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/air-quality/historical": {
+            "get": {
+                "description": "Returns historical air quality data aggregated by timeline",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get historical air quality data",
+                "parameters": [
+                    {
+                        "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly",
+                            "yearly"
+                        ],
+                        "type": "string",
+                        "description": "Timeline",
+                        "name": "timeline",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

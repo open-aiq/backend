@@ -21,11 +21,17 @@ type HistoricalData struct {
 // DataPoint represents a single data point in a time series
 type DataPoint struct {
 	Timestamp time.Time  `json:"timestamp"`
-	Label     string     `json:"label"` // e.g., "14:00", "Monday", "Week 3", "January"
+	Label     string     `json:"label"`
 	Metrics   AirQuality `json:"metrics"`
 }
 
-// FilterQuery handles the incoming URL query parameters
-type FilterQuery struct {
-	Timeline string `form:"timeline"` // e.g., "all", "daily", "weekly"
+// HistoricalQuery holds query parameters for the historical endpoint.
+type HistoricalQuery struct {
+	Timeline string `form:"timeline" binding:"required,oneof=daily weekly monthly yearly"`
+}
+
+// CustomQuery holds query parameters for the custom date range endpoint.
+type CustomQuery struct {
+	StartDate string `form:"start_date" binding:"required"`
+	EndDate   string `form:"end_date" binding:"required"`
 }
