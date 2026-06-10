@@ -1,21 +1,27 @@
-.PHONY: dev build run swagger clean
+.PHONY: help dev build run swagger clean
 
-# Live reload with swagger regeneration
+## help: Show available commands
+help:
+	@echo "Available commands:"
+	@echo ""
+	@sed -n 's/^## //p' $(MAKEFILE_LIST) | column -t -s ':' | sed 's/^/  /'
+
+## dev: Live reload with swagger regeneration
 dev:
 	air
 
-# Generate swagger docs
+## swagger: Generate swagger docs
 swagger:
 	swag init -g cmd/server/main.go -o docs
 
-# Build the binary
+## build: Build the binary (runs swagger first)
 build: swagger
 	go build -o bin/server ./cmd/server/
 
-# Run the binary
+## run: Build and run the server
 run: build
 	./bin/server
 
-# Remove build artifacts
+## clean: Remove build artifacts
 clean:
 	rm -rf bin/ tmp/
