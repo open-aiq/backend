@@ -1,0 +1,44 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact: {}
+  description: Air quality monitoring API
+  title: Air Quality API
+  version: "1.0"
+paths:
+  /air-quality:
+    get:
+      consumes:
+      - application/json
+      description: Returns current and historical air quality information
+      parameters:
+      - description: Location
+        in: query
+        name: location
+        required: true
+        type: string
+      - description: Sensor ID
+        in: query
+        name: sensor_id
+        type: string
+      - description: Timeline (daily, weekly, monthly, yearly, all)
+        in: query
+        name: timeline
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get air quality data
+      tags:
+      - Air Quality
+swagger: "2.0"

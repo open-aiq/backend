@@ -1,3 +1,5 @@
+//go:generate swag init -g main.go
+
 package main
 
 import (
@@ -5,6 +7,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "go-aiq-backend/docs"
 )
 
 // --- Models ---
@@ -38,9 +45,16 @@ type FilterQuery struct {
 	Timeline string `form:"timeline"`                    // e.g., "all", "daily", "weekly"
 }
 
+// @title Air Quality API
+// @version 1.0
+// @description Air quality monitoring API
+// @host localhost:8080
+// @BasePath /api/v1
 func main() {
 	// Initialize Gin engine with default logger and recovery middleware
 	r := gin.Default()
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API Route Group
 	api := r.Group("/api/v1")
@@ -52,8 +66,22 @@ func main() {
 	r.Run(":8080")
 }
 
-// --- Handler ---
-
+// handleAirQuality godoc
+//
+// @Summary Get air quality data
+// @Description Returns current and historical air quality information
+// @Tags Air Quality
+// @Accept json
+// @Produce json
+//
+// @Param location query string true "Location"
+// @Param sensor_id query string false "Sensor ID"
+// @Param timeline query string false "Timeline (daily, weekly, monthly, yearly, all)"
+//
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+//
+// @Router /air-quality [get]
 func handleAirQuality(c *gin.Context) {
 	var filters FilterQuery
 
