@@ -29,15 +29,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.CurrentResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.ErrorResponse"
                         }
                     }
                 }
@@ -73,22 +71,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.CustomRangeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.ErrorResponse"
                         }
                     }
                 }
@@ -123,24 +118,147 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.HistoricalResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/airquality.ErrorResponse"
                         }
                     }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "airquality.AirQuality": {
+            "type": "object",
+            "properties": {
+                "aqi": {
+                    "type": "integer"
+                },
+                "pm10_0": {
+                    "type": "number"
+                },
+                "pm1_0": {
+                    "type": "number"
+                },
+                "pm2_5": {
+                    "type": "number"
+                }
+            }
+        },
+        "airquality.CurrentResponse": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/airquality.AirQuality"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "airquality.CustomRangeResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2026-06-10"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2026-01-01"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "airquality.DataPoint": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "$ref": "#/definitions/airquality.AirQuality"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "airquality.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string",
+                    "example": "timeline is required"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Missing or invalid query parameters"
+                }
+            }
+        },
+        "airquality.HistoricalData": {
+            "type": "object",
+            "properties": {
+                "daily_hourly": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                },
+                "monthly_weekly": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                },
+                "weekly_daily": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                },
+                "yearly_monthly": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                }
+            }
+        },
+        "airquality.HistoricalResponse": {
+            "type": "object",
+            "properties": {
+                "historical": {
+                    "$ref": "#/definitions/airquality.HistoricalData"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                },
+                "timeline": {
+                    "type": "string",
+                    "example": "daily"
                 }
             }
         }

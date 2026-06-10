@@ -35,3 +35,28 @@ type CustomQuery struct {
 	StartDate string `form:"start_date" binding:"required"`
 	EndDate   string `form:"end_date" binding:"required"`
 }
+
+// Response types for swagger documentation
+
+type CurrentResponse struct {
+	Status  string     `json:"status" example:"success"`
+	Current AirQuality `json:"current"`
+}
+
+type HistoricalResponse struct {
+	Status     string         `json:"status" example:"success"`
+	Timeline   string         `json:"timeline" example:"daily"`
+	Historical HistoricalData `json:"historical"`
+}
+
+type CustomRangeResponse struct {
+	Status    string      `json:"status" example:"success"`
+	StartDate string      `json:"start_date" example:"2026-01-01"`
+	EndDate   string      `json:"end_date" example:"2026-06-10"`
+	Data      []DataPoint `json:"data"`
+}
+
+type ErrorResponse struct {
+	Error   string `json:"error" example:"Missing or invalid query parameters"`
+	Details string `json:"details,omitempty" example:"timeline is required"`
+}

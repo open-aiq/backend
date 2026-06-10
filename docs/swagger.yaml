@@ -1,4 +1,88 @@
 basePath: /api/v1
+definitions:
+  airquality.AirQuality:
+    properties:
+      aqi:
+        type: integer
+      pm1_0:
+        type: number
+      pm2_5:
+        type: number
+      pm10_0:
+        type: number
+    type: object
+  airquality.CurrentResponse:
+    properties:
+      current:
+        $ref: '#/definitions/airquality.AirQuality'
+      status:
+        example: success
+        type: string
+    type: object
+  airquality.CustomRangeResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+      end_date:
+        example: "2026-06-10"
+        type: string
+      start_date:
+        example: "2026-01-01"
+        type: string
+      status:
+        example: success
+        type: string
+    type: object
+  airquality.DataPoint:
+    properties:
+      label:
+        type: string
+      metrics:
+        $ref: '#/definitions/airquality.AirQuality'
+      timestamp:
+        type: string
+    type: object
+  airquality.ErrorResponse:
+    properties:
+      details:
+        example: timeline is required
+        type: string
+      error:
+        example: Missing or invalid query parameters
+        type: string
+    type: object
+  airquality.HistoricalData:
+    properties:
+      daily_hourly:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+      monthly_weekly:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+      weekly_daily:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+      yearly_monthly:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+    type: object
+  airquality.HistoricalResponse:
+    properties:
+      historical:
+        $ref: '#/definitions/airquality.HistoricalData'
+      status:
+        example: success
+        type: string
+      timeline:
+        example: daily
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -15,13 +99,11 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.CurrentResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.ErrorResponse'
       summary: Get current air quality
       tags:
       - Air Quality
@@ -45,18 +127,15 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.CustomRangeResponse'
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.ErrorResponse'
       summary: Get air quality data for a custom date range
       tags:
       - Air Quality
@@ -80,18 +159,15 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.HistoricalResponse'
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/airquality.ErrorResponse'
       summary: Get historical air quality data
       tags:
       - Air Quality

@@ -24,8 +24,8 @@ func NewHandler(service *Service) *Handler {
 // @Tags Air Quality
 // @Produce json
 //
-// @Success 200 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Success 200 {object} CurrentResponse
+// @Failure 500 {object} ErrorResponse
 //
 // @Router /air-quality/current [get]
 func (h *Handler) GetCurrent(c *gin.Context) {
@@ -50,9 +50,9 @@ func (h *Handler) GetCurrent(c *gin.Context) {
 //
 // @Param timeline query string true "Timeline" Enums(daily, weekly, monthly, yearly)
 //
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Success 200 {object} HistoricalResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
 //
 // @Router /air-quality/historical [get]
 func (h *Handler) GetHistorical(c *gin.Context) {
@@ -89,9 +89,9 @@ func (h *Handler) GetHistorical(c *gin.Context) {
 // @Param start_date query string true "Start date (YYYY-MM-DD)"
 // @Param end_date query string true "End date (YYYY-MM-DD)"
 //
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Success 200 {object} CustomRangeResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
 //
 // @Router /air-quality/custom [get]
 func (h *Handler) GetCustomRange(c *gin.Context) {
