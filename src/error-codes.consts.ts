@@ -1,1 +1,0 @@
-export const DATABASE_CONNECTION_FAILED = 2;
