@@ -12,15 +12,6 @@ paths:
       - application/json
       description: Returns current and historical air quality information
       parameters:
-      - description: Location
-        in: query
-        name: location
-        required: true
-        type: string
-      - description: Sensor ID
-        in: query
-        name: sensor_id
-        type: string
       - description: Timeline (daily, weekly, monthly, yearly, all)
         in: query
         name: timeline

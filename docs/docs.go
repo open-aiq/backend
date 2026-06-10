@@ -31,19 +31,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Location",
-                        "name": "location",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sensor ID",
-                        "name": "sensor_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
                         "description": "Timeline (daily, weekly, monthly, yearly, all)",
                         "name": "timeline",
                         "in": "query"
