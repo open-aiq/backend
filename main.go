@@ -109,7 +109,7 @@ func handleAirQuality(c *gin.Context) {
 
 	if filters.Timeline == "daily" || filters.Timeline == "all" || filters.Timeline == "" {
 		// Mock 24 hours of data
-		for i := 0; i < 24; i++ {
+		for i := range 24 {
 			historical.DailyHourly = append(historical.DailyHourly, DataPoint{
 				Timestamp: now.Add(time.Duration(-i) * time.Hour),
 				Label:     now.Add(time.Duration(-i) * time.Hour).Format("15:00"),
@@ -121,7 +121,7 @@ func handleAirQuality(c *gin.Context) {
 	if filters.Timeline == "weekly" || filters.Timeline == "all" || filters.Timeline == "" {
 		// Mock 7 days of data
 		days := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
-		for i := 0; i < 7; i++ {
+		for i := range 7 {
 			historical.WeeklyDaily = append(historical.WeeklyDaily, DataPoint{
 				Timestamp: now.AddDate(0, 0, -i),
 				Label:     days[int(now.AddDate(0, 0, -i).Weekday())],
@@ -143,7 +143,7 @@ func handleAirQuality(c *gin.Context) {
 
 	if filters.Timeline == "yearly" || filters.Timeline == "all" || filters.Timeline == "" {
 		// Mock 12 months of data
-		for i := 0; i < 12; i++ {
+		for i := range 12 {
 			t := now.AddDate(0, -i, 0)
 			historical.YearlyMonthly = append(historical.YearlyMonthly, DataPoint{
 				Timestamp: t,
