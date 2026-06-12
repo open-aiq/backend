@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds the application configuration.
@@ -39,6 +41,10 @@ func (c *Config) IsProduction() bool {
 // Load reads configuration from the environment, applies defaults, and validates it.
 // It returns an error if any value is missing or invalid so the caller can fail fast.
 func Load() (*Config, error) {
+	// Load .env if present. Real environment variables take precedence over
+	// .env values, and a missing file is not an error (e.g. in production).
+	_ = godotenv.Load()
+
 	cfg := &Config{
 		Env:         getenv("ENV", "development"),
 		Host:        getenv("HOST", ""), // empty = all interfaces (0.0.0.0)
