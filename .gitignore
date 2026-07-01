@@ -4,10 +4,10 @@
 *.dll
 *.so
 *.dylib
-bin/
-dist/
-server
-go-aiq-backend
+/bin/
+/dist/
+/server
+/go-aiq-backend
 
 # Test binaries and coverage artifacts
 *.test
