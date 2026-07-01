@@ -1,0 +1,142 @@
+basePath: /api/v1
+definitions:
+  airquality.AirQuality:
+    properties:
+      aqi:
+        type: integer
+      pm1_0:
+        type: number
+      pm2_5:
+        type: number
+      pm10_0:
+        type: number
+    type: object
+  airquality.CurrentResponse:
+    properties:
+      data:
+        $ref: '#/definitions/airquality.AirQuality'
+    type: object
+  airquality.CustomRangeResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+    type: object
+  airquality.DataPoint:
+    properties:
+      label:
+        type: string
+      metrics:
+        $ref: '#/definitions/airquality.AirQuality'
+      timestamp:
+        type: string
+    type: object
+  airquality.ErrorResponse:
+    properties:
+      details:
+        example: timeline is required
+        type: string
+      error:
+        example: Missing or invalid query parameters
+        type: string
+    type: object
+  airquality.HistoricalResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/airquality.DataPoint'
+        type: array
+      timeline:
+        example: daily
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Air quality monitoring API
+  title: Air Quality API
+  version: "1.0"
+paths:
+  /air-quality/current:
+    get:
+      description: Returns the latest air quality reading
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.CurrentResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get current air quality
+      tags:
+      - Air Quality
+  /air-quality/custom:
+    get:
+      description: Returns air quality data points between start_date and end_date
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.CustomRangeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get air quality data for a custom date range
+      tags:
+      - Air Quality
+  /air-quality/historical:
+    get:
+      description: Returns historical air quality data aggregated by timeline
+      parameters:
+      - description: Timeline
+        enum:
+        - daily
+        - weekly
+        - monthly
+        - yearly
+        in: query
+        name: timeline
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.HistoricalResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get historical air quality data
+      tags:
+      - Air Quality
+swagger: "2.0"

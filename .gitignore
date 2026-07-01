@@ -1,27 +1,41 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-nbproject/private/
-build/
-nbbuild/
+# Binary outputs (compiled Go programs and plugins)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
 dist/
-nbdist/
-.nb-gradle/
+server
+go-aiq-backend
 
-#Mongo DB Server
-data-mongodb/
+# Test binaries and coverage artifacts
+*.test
+*.out
+*.coverprofile
+profile.cov
+coverage.txt
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories 
+# (Uncomment the line below if you want to skip vendored dependencies)
+# vendor/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Common IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+tmp

@@ -1,0 +1,214 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Air quality monitoring API",
+        "title": "Air Quality API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/air-quality/current": {
+            "get": {
+                "description": "Returns the latest air quality reading",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get current air quality",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.CurrentResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/air-quality/custom": {
+            "get": {
+                "description": "Returns air quality data points between start_date and end_date",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get air quality data for a custom date range",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.CustomRangeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/air-quality/historical": {
+            "get": {
+                "description": "Returns historical air quality data aggregated by timeline",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get historical air quality data",
+                "parameters": [
+                    {
+                        "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly",
+                            "yearly"
+                        ],
+                        "type": "string",
+                        "description": "Timeline",
+                        "name": "timeline",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.HistoricalResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "airquality.AirQuality": {
+            "type": "object",
+            "properties": {
+                "aqi": {
+                    "type": "integer"
+                },
+                "pm10_0": {
+                    "type": "number"
+                },
+                "pm1_0": {
+                    "type": "number"
+                },
+                "pm2_5": {
+                    "type": "number"
+                }
+            }
+        },
+        "airquality.CurrentResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/airquality.AirQuality"
+                }
+            }
+        },
+        "airquality.CustomRangeResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                }
+            }
+        },
+        "airquality.DataPoint": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "$ref": "#/definitions/airquality.AirQuality"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "airquality.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string",
+                    "example": "timeline is required"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Missing or invalid query parameters"
+                }
+            }
+        },
+        "airquality.HistoricalResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.DataPoint"
+                    }
+                },
+                "timeline": {
+                    "type": "string",
+                    "example": "daily"
+                }
+            }
+        }
+    }
+}
