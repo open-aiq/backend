@@ -19,6 +19,7 @@ import (
 	"go-aiq-backend/internal/device"
 	"go-aiq-backend/internal/platform/config"
 	"go-aiq-backend/internal/platform/database"
+	"go-aiq-backend/internal/platform/middleware"
 )
 
 // version is the build version, injected at release time via
@@ -64,6 +65,7 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.Default()
+	r.Use(middleware.CORS(cfg.CORSAllowedOrigins))
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
