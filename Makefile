@@ -31,11 +31,11 @@ generate:
 ## migration: Generate a versioned migration from schema changes — usage: make migration name=<description> (needs Docker)
 migration:
 	@test -n "$(name)" || { echo "usage: make migration name=<description>"; exit 1; }
-	bash scripts/generate-migration.sh "$(name)"
+	atlas migrate diff "$(name)" --env defaultConfig
 
 ## migrate-up: Apply all pending migrations to DATABASE_URL
 migrate-up: require-database-url
-	go run ./cmd/migrate
+	atlas migrate apply --env defaultConfig --url "$(DATABASE_URL)"
 
 ## build: Regenerate code, generate swagger, and build the binary
 build: generate swagger

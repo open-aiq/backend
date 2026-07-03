@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+bin/
+tmp/
+dist/
+docs/docs.go.bak
+*.md
+Makefile
+scripts/release.sh
