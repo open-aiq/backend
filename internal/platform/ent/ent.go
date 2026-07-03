@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/pmsreading"
 	"reflect"
 	"sync"
@@ -73,6 +74,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			device.Table:     device.ValidColumn,
 			pmsreading.Table: pmsreading.ValidColumn,
 		})
 	})

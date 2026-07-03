@@ -3,15 +3,46 @@
 package ent
 
 import (
+	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/pmsreading"
 	"go-aiq-backend/internal/platform/ent/schema"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	deviceFields := schema.Device{}.Fields()
+	_ = deviceFields
+	// deviceDescDeviceID is the schema descriptor for device_id field.
+	deviceDescDeviceID := deviceFields[1].Descriptor()
+	// device.DeviceIDValidator is a validator for the "device_id" field. It is called by the builders before save.
+	device.DeviceIDValidator = deviceDescDeviceID.Validators[0].(func(string) error)
+	// deviceDescName is the schema descriptor for name field.
+	deviceDescName := deviceFields[2].Descriptor()
+	// device.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	device.NameValidator = deviceDescName.Validators[0].(func(string) error)
+	// deviceDescDeviceKey is the schema descriptor for device_key field.
+	deviceDescDeviceKey := deviceFields[3].Descriptor()
+	// device.DeviceKeyValidator is a validator for the "device_key" field. It is called by the builders before save.
+	device.DeviceKeyValidator = deviceDescDeviceKey.Validators[0].(func(string) error)
+	// deviceDescCreatedAt is the schema descriptor for created_at field.
+	deviceDescCreatedAt := deviceFields[4].Descriptor()
+	// device.DefaultCreatedAt holds the default value on creation for the created_at field.
+	device.DefaultCreatedAt = deviceDescCreatedAt.Default.(func() time.Time)
+	// deviceDescUpdatedAt is the schema descriptor for updated_at field.
+	deviceDescUpdatedAt := deviceFields[5].Descriptor()
+	// device.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	device.DefaultUpdatedAt = deviceDescUpdatedAt.Default.(func() time.Time)
+	// device.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	device.UpdateDefaultUpdatedAt = deviceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// deviceDescID is the schema descriptor for id field.
+	deviceDescID := deviceFields[0].Descriptor()
+	// device.DefaultID holds the default value on creation for the id field.
+	device.DefaultID = deviceDescID.Default.(func() uuid.UUID)
 	pmsreadingFields := schema.PMSReading{}.Fields()
 	_ = pmsreadingFields
 	// pmsreadingDescPm10 is the schema descriptor for pm1_0 field.

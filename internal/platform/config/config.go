@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -38,23 +39,32 @@ func (c *Config) IsProduction() bool {
 	return strings.EqualFold(c.Env, "production")
 }
 
-// Load reads configuration from the environment, applies defaults, and validates it.
-// It returns an error if any value is missing or invalid so the caller can fail fast.
+// Load reads configuration from the environment and validates it. Every variable
+// is required — there are no defaults — so the environment (or .env) is the single
+// source of truth. Missing or invalid values are collected and returned together so
+// the caller can fail fast.
 func Load() (*Config, error) {
 	// Load .env if present. Real environment variables take precedence over
-	// .env values, and a missing file is not an error (e.g. in production).
+	// .env values, and a missing file is not an error (e.g. in production where
+	// the variables are set directly).
 	_ = godotenv.Load()
 
+	var errs []error
+
 	cfg := &Config{
-		Env:         getenv("ENV", "development"),
-		Host:        getenv("HOST", ""), // empty = all interfaces (0.0.0.0)
-		Port:        normalizePort(getenv("PORT", "8080")),
-		DatabaseURL: getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/openaiq?sslmode=disable"),
+		Env:         requireString("ENV", &errs),
+		Host:        requirePresent("HOST", &errs), // may be empty = all interfaces (0.0.0.0)
+		Port:        normalizePort(requireString("PORT", &errs)),
+		DatabaseURL: requireString("DATABASE_URL", &errs),
 		DB: DBConfig{
-			MaxOpenConns:    getenvInt("DB_MAX_OPEN_CONNS", 25),
-			MaxIdleConns:    getenvInt("DB_MAX_IDLE_CONNS", 5),
-			ConnMaxLifetime: getenvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute),
+			MaxOpenConns:    requireInt("DB_MAX_OPEN_CONNS", &errs),
+			MaxIdleConns:    requireInt("DB_MAX_IDLE_CONNS", &errs),
+			ConnMaxLifetime: requireDuration("DB_CONN_MAX_LIFETIME", &errs),
 		},
+	}
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("invalid configuration: %w", errors.Join(errs...))
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -98,38 +108,57 @@ func (c *Config) validate() error {
 	return nil
 }
 
-// getenv returns the trimmed value of the environment variable named by key,
-// or fallback if the variable is unset or empty.
-func getenv(key, fallback string) string {
-	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-		return v
-	}
-	return fallback
-}
-
-// getenvInt parses an integer environment variable, falling back on unset/invalid input.
-func getenvInt(key string, fallback int) int {
+// requireString returns the trimmed value of a required environment variable,
+// recording an error if it is unset or empty.
+func requireString(key string, errs *[]error) string {
 	v := strings.TrimSpace(os.Getenv(key))
 	if v == "" {
-		return fallback
+		*errs = append(*errs, fmt.Errorf("%s is required", key))
+		return ""
+	}
+	return v
+}
+
+// requirePresent returns the trimmed value of a variable that must be present but
+// may be empty (e.g. HOST, where empty means "all interfaces"). It records an error
+// only when the variable is entirely unset.
+func requirePresent(key string, errs *[]error) string {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		*errs = append(*errs, fmt.Errorf("%s is required (set it empty for all interfaces)", key))
+		return ""
+	}
+	return strings.TrimSpace(v)
+}
+
+// requireInt parses a required integer environment variable, recording an error if
+// it is unset, empty, or not a valid integer.
+func requireInt(key string, errs *[]error) int {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		*errs = append(*errs, fmt.Errorf("%s is required", key))
+		return 0
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return fallback
+		*errs = append(*errs, fmt.Errorf("%s must be an integer, got %q", key, v))
+		return 0
 	}
 	return n
 }
 
-// getenvDuration parses a duration environment variable (e.g. "5m", "30s"),
-// falling back on unset/invalid input.
-func getenvDuration(key string, fallback time.Duration) time.Duration {
+// requireDuration parses a required duration environment variable (e.g. "5m",
+// "30s"), recording an error if it is unset, empty, or not a valid duration.
+func requireDuration(key string, errs *[]error) time.Duration {
 	v := strings.TrimSpace(os.Getenv(key))
 	if v == "" {
-		return fallback
+		*errs = append(*errs, fmt.Errorf("%s is required", key))
+		return 0
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		return fallback
+		*errs = append(*errs, fmt.Errorf("%s must be a duration (e.g. 5m, 30s), got %q", key, v))
+		return 0
 	}
 	return d
 }

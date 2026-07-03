@@ -36,11 +36,3 @@ func New(cfg *config.Config) (*ent.Client, error) {
 	drv := entsql.OpenDB(dialect.Postgres, db)
 	return ent.NewClient(ent.Driver(drv)), nil
 }
-
-// Migrate runs Ent's auto-migration, creating/updating tables to match the schema.
-func Migrate(ctx context.Context, client *ent.Client) error {
-	if err := client.Schema.Create(ctx); err != nil {
-		return fmt.Errorf("run schema migration: %w", err)
-	}
-	return nil
-}

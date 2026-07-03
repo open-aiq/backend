@@ -51,6 +51,68 @@ definitions:
         example: daily
         type: string
     type: object
+  device.CreateDeviceRequest:
+    properties:
+      name:
+        example: Living Room Sensor
+        type: string
+    required:
+    - name
+    type: object
+  device.CreateDeviceResponse:
+    properties:
+      data:
+        $ref: '#/definitions/device.CreatedDevice'
+    type: object
+  device.CreatedDevice:
+    properties:
+      created_at:
+        type: string
+      device_id:
+        example: dev_9f1c8a3b4d2e4f0a5b6c7d8e9f001122
+        type: string
+      device_key:
+        example: sk_1a2b3c4d5e6f...store this now, it won't be shown again
+        type: string
+      id:
+        type: string
+      name:
+        example: Living Room Sensor
+        type: string
+      updated_at:
+        type: string
+    type: object
+  device.Device:
+    properties:
+      created_at:
+        type: string
+      device_id:
+        example: dev_9f1c8a3b4d2e4f0a5b6c7d8e9f001122
+        type: string
+      id:
+        type: string
+      name:
+        example: Living Room Sensor
+        type: string
+      updated_at:
+        type: string
+    type: object
+  device.ErrorResponse:
+    properties:
+      details:
+        example: name is required
+        type: string
+      error:
+        example: Invalid request body
+        type: string
+    type: object
+  device.ListDevicesResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/device.Device'
+        type: array
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -139,4 +201,80 @@ paths:
       summary: Get historical air quality data
       tags:
       - Air Quality
+  /devices:
+    get:
+      description: Returns all registered devices. Secret keys are never included.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/device.ListDevicesResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+      summary: List all devices
+      tags:
+      - Devices
+    post:
+      consumes:
+      - application/json
+      description: Registers a device and returns its credentials. The device_key
+        is a secret shown only once here; store it securely.
+      parameters:
+      - description: Device to register
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/device.CreateDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/device.CreateDeviceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+      summary: Register a new device
+      tags:
+      - Devices
+  /devices/{id}:
+    delete:
+      description: Permanently deletes a device by its id.
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+      summary: Delete a device
+      tags:
+      - Devices
 swagger: "2.0"
