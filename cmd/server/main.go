@@ -14,11 +14,16 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	_ "go-aiq-backend/docs"
+	"go-aiq-backend/docs"
 	"go-aiq-backend/internal/airquality"
+	"go-aiq-backend/internal/device"
 	"go-aiq-backend/internal/platform/config"
 	"go-aiq-backend/internal/platform/database"
 )
+
+// version is the build version, injected at release time via
+// -ldflags "-X main.version=<tag>". Defaults to "dev" for local builds.
+var version = "dev"
 
 // @title Air Quality API
 // @version 1.0
@@ -31,21 +36,28 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	// Connect to Postgres and auto-migrate the schema on startup.
+	// Connect to Postgres. Schema changes are applied out-of-band via versioned
+	// migrations (cmd/migrate / `make migrate-up`), never on startup.
 	client, err := database.New(cfg)
 	if err != nil {
 		log.Fatalf("database: %v", err)
 	}
 	defer client.Close()
 
-	if err := database.Migrate(context.Background(), client); err != nil {
-		log.Fatalf("migrate: %v", err)
-	}
-
 	// Wire up the air quality domain.
 	// TODO: swap MockRepository for an Ent-backed repository once implemented.
 	service := airquality.NewService(airquality.NewMockRepository())
 	handler := airquality.NewHandler(service)
+
+	// Wire up the device domain (Ent-backed).
+	deviceHandler := device.NewHandler(device.NewService(device.NewEntRepository(client)))
+
+	// Serve Swagger with a relative host so "Try it out" targets whatever
+	// origin served the docs (localhost in dev, the real domain in prod, or
+	// behind a reverse proxy) instead of the baked-in @host. Leaving Host and
+	// Schemes empty makes Swagger UI fall back to the browser's location.
+	docs.SwaggerInfo.Host = ""
+	docs.SwaggerInfo.Schemes = nil
 
 	// HTTP router.
 	if cfg.IsProduction() {
@@ -57,6 +69,7 @@ func main() {
 
 	api := r.Group("/api/v1")
 	handler.RegisterRoutes(api)
+	deviceHandler.RegisterRoutes(api)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr(),
@@ -65,7 +78,7 @@ func main() {
 
 	// Run the server in a goroutine so we can listen for shutdown signals.
 	go func() {
-		log.Printf("listening on %s (env=%s)", cfg.Addr(), cfg.Env)
+		log.Printf("listening on %s (env=%s, version=%s)", cfg.Addr(), cfg.Env, version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server: %v", err)
 		}

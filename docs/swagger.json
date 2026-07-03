@@ -129,6 +129,120 @@
                     }
                 }
             }
+        },
+        "/devices": {
+            "get": {
+                "description": "Returns all registered devices. Secret keys are never included.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "List all devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/device.ListDevicesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Registers a device and returns its credentials. The device_key is a secret shown only once here; store it securely.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Register a new device",
+                "parameters": [
+                    {
+                        "description": "Device to register",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/device.CreateDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/device.CreateDeviceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}": {
+            "delete": {
+                "description": "Permanently deletes a device by its id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Delete a device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -207,6 +321,98 @@
                 "timeline": {
                     "type": "string",
                     "example": "daily"
+                }
+            }
+        },
+        "device.CreateDeviceRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Living Room Sensor"
+                }
+            }
+        },
+        "device.CreateDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/device.CreatedDevice"
+                }
+            }
+        },
+        "device.CreatedDevice": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string",
+                    "example": "dev_9f1c8a3b4d2e4f0a5b6c7d8e9f001122"
+                },
+                "device_key": {
+                    "type": "string",
+                    "example": "sk_1a2b3c4d5e6f...store this now, it won't be shown again"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Living Room Sensor"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "device.Device": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string",
+                    "example": "dev_9f1c8a3b4d2e4f0a5b6c7d8e9f001122"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Living Room Sensor"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "device.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string",
+                    "example": "name is required"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Invalid request body"
+                }
+            }
+        },
+        "device.ListDevicesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/device.Device"
+                    }
                 }
             }
         }

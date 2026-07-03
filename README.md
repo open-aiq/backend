@@ -8,11 +8,21 @@ Air quality monitoring API built with Go, Gin, and Ent (PostgreSQL).
 - Docker (for PostgreSQL)
 - [`air`](https://github.com/air-verse/air) and [`swag`](https://github.com/swaggo/swag) for live reload and Swagger generation (only needed for `make dev` / `make swagger`)
 
+## Commands
+
+This project uses a [`Makefile`](Makefile) as its command runner and single source
+of truth for all operations.
+
+```
+make help
+```
+
 ## Configuration
 
 Configuration is read from environment variables, loaded from a `.env` file at the
-project root if present. Real environment variables take precedence over `.env`,
-and a missing `.env` is fine (values fall back to sensible defaults).
+project root if present. Real environment variables take precedence over `.env`.
+Every variable is **required** — there are no defaults — so the app fails fast on
+startup (listing what's missing) if any is unset.
 
 Get started by copying the template:
 
@@ -27,47 +37,53 @@ and descriptions — it is the single source of truth for configuration.
 
 ## Database
 
-Start a PostgreSQL container. Its user, password, database name, and port are
-derived from `DATABASE_URL` in your `.env`, so there's nothing to configure twice:
+PostgreSQL runs in a Docker container whose user, password, database, and port are
+derived from `DATABASE_URL` in your `.env`, so there's nothing to configure twice.
+Start it and manage it with the `db-*` targets in `make help`.
+
+The schema is managed with [Ent](https://entgo.io) and auto-migrated on startup, so
+no manual migration step is needed in development. After editing a schema in
+`internal/platform/ent/schema/`, regenerate the Ent client with `make generate`
+(also run automatically by `make build`).
+
+## Architecture
+
+The backend follows a hybrid domain-driven + hexagonal design.
+
+- **Domains** live in `internal/<domain>/` (e.g. `internal/airquality/`,
+  `internal/device/`) and are self-contained. Each is split into:
+  - `model.go` — domain types and request/response DTOs
+  - `repository.go` — the `Repository` interface (hexagonal port) and its implementation
+  - `service.go` — business logic
+  - `handler.go` — Gin HTTP handlers with Swagger annotations
+  - `routes.go` — route registration
+- **Shared infrastructure** lives in `internal/platform/` — config, database,
+  and the Ent client/schema.
+- **Request flow:** `routes → handler → service → repository (interface) → DB`.
+  Handlers never touch the DB directly; services depend on the repository
+  *interface*, so implementations (Ent-backed or in-memory mock) are swappable.
+  (Note: `airquality` currently uses a mock repository; `device` is Ent-backed.)
+- **Entrypoint:** `cmd/server/main.go` wires each domain's repository → service
+  → handler and registers its routes.
+
+## Releases
+
+Releases follow [SemVer](https://semver.org) with a `v` prefix (e.g. `v0.1.0`) and
+are cut **only from `main`**. `dev` is for integration; promote `dev` → `main`, then
+release from `main`.
 
 ```
-make db-up
+make release
 ```
 
-Other database helpers: `make db-down` (remove container, keep data), `make db-logs`,
-and `make db-shell` (open a `psql` session). Run `make help` for the full list.
+This prompts for the bump type (**major/minor/patch**), computes the next version
+from the latest tag, and — after you confirm — builds version-stamped binaries for
+`linux/amd64`, `linux/arm64`, and `darwin/arm64`, assembles a deploy bundle plus the
+OpenAPI spec and `SHA256SUMS`, tags the commit, and publishes a GitHub release with
+auto-generated notes and the artifacts attached.
 
-The schema is managed with [Ent](https://entgo.io). Tables are auto-migrated on
-startup, so no manual migration step is needed in development. After editing a
-schema in `internal/platform/ent/schema/`, regenerate the client:
-
-```
-go generate ./internal/platform/ent
-```
-
-## Running
-
-This project uses a [`Makefile`](Makefile) as a command runner. Rather than
-memorising long commands, you run short `make <target>` shortcuts. You don't need
-to know `make` itself — list every available target, with descriptions, at any time:
-
-```
-make help
-```
-
-The usual one to start the server:
-
-```
-make run        # generate Swagger docs, build, and run
-```
-
-The [`Makefile`](Makefile) is the single source of truth for the available targets.
-
-Prefer to skip the build tooling? Run directly with Go:
-
-```
-go run ./cmd/server
-```
+It runs locally and requires an authenticated [`gh`](https://cli.github.com) CLI.
+The logic lives in [`scripts/release.sh`](scripts/release.sh).
 
 ## API Documentation
 

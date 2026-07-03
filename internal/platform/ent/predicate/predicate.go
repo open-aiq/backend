@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Device is the predicate function for device builders.
+type Device func(*sql.Selector)
+
 // PMSReading is the predicate function for pmsreading builders.
 type PMSReading func(*sql.Selector)
