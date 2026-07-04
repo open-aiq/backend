@@ -11,7 +11,7 @@
     "paths": {
         "/air-quality/current": {
             "get": {
-                "description": "Returns the latest air quality reading",
+                "description": "Returns sensor metrics averaged over the last hour, the device status (offline when nothing was received for 20 minutes), the last_seen timestamp, and the latest known location. 404 only when the device has never reported.",
                 "produces": [
                     "application/json"
                 ],
@@ -24,6 +24,12 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/airquality.CurrentResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
                         }
                     },
                     "500": {
@@ -125,6 +131,72 @@
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/data": {
+            "post": {
+                "description": "Stores one full sensor reading (particulate matter, AQI, temperature, optional location). The device authenticates with its X-Device-ID and X-Device-Key headers.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Data"
+                ],
+                "summary": "Upload a sensor reading",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public device id (dev_...)",
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Secret device key (sk_...)",
+                        "name": "X-Device-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Sensor reading",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/devicereading.UploadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/devicereading.UploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/devicereading.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/devicereading.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/devicereading.ErrorResponse"
                         }
                     }
                 }
@@ -242,6 +314,211 @@
                         }
                     }
                 }
+            },
+            "patch": {
+                "description": "Partially updates a device: only the fields present in the body (name, is_outdoor, is_public) are changed.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Update a device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/device.UpdateDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/device.UpdateDeviceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/current": {
+            "get": {
+                "description": "Same as /air-quality/current but restricted to a single device",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get current air quality for one device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.CurrentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/historical": {
+            "get": {
+                "description": "Same as /air-quality/historical but restricted to a single device",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Air Quality"
+                ],
+                "summary": "Get historical air quality data for one device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly",
+                            "yearly"
+                        ],
+                        "type": "string",
+                        "description": "Timeline",
+                        "name": "timeline",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.HistoricalResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/rotate-key": {
+            "post": {
+                "description": "Generates a new device_key for the device, invalidating the old one immediately. The new key is shown only in this response; update the physical device with it right away.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Rotate a device's secret key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/device.RotateKeyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    }
+                }
             }
         }
     },
@@ -252,6 +529,12 @@
                 "aqi": {
                     "type": "integer"
                 },
+                "heat_index": {
+                    "type": "number"
+                },
+                "humidity": {
+                    "type": "number"
+                },
                 "pm10_0": {
                     "type": "number"
                 },
@@ -260,6 +543,49 @@
                 },
                 "pm2_5": {
                     "type": "number"
+                },
+                "temperature": {
+                    "type": "number"
+                }
+            }
+        },
+        "airquality.CurrentAirQuality": {
+            "type": "object",
+            "properties": {
+                "aqi": {
+                    "type": "integer"
+                },
+                "heat_index": {
+                    "type": "number"
+                },
+                "humidity": {
+                    "type": "number"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "location": {
+                    "$ref": "#/definitions/airquality.Location"
+                },
+                "pm10_0": {
+                    "type": "number"
+                },
+                "pm1_0": {
+                    "type": "number"
+                },
+                "pm2_5": {
+                    "type": "number"
+                },
+                "sample_count": {
+                    "type": "integer",
+                    "example": 6
+                },
+                "status": {
+                    "type": "string",
+                    "example": "online"
+                },
+                "temperature": {
+                    "type": "number"
                 }
             }
         },
@@ -267,7 +593,7 @@
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/airquality.AirQuality"
+                    "$ref": "#/definitions/airquality.CurrentAirQuality"
                 }
             }
         },
@@ -324,12 +650,40 @@
                 }
             }
         },
+        "airquality.Location": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number",
+                    "example": 24.8607
+                },
+                "lon": {
+                    "type": "number",
+                    "example": 67.0011
+                },
+                "provider": {
+                    "type": "string",
+                    "example": "mobile"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
         "device.CreateDeviceRequest": {
             "type": "object",
             "required": [
                 "name"
             ],
             "properties": {
+                "is_outdoor": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "is_public": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "name": {
                     "type": "string",
                     "example": "Living Room Sensor"
@@ -361,6 +715,14 @@
                 "id": {
                     "type": "string"
                 },
+                "is_outdoor": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "is_public": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "name": {
                     "type": "string",
                     "example": "Living Room Sensor"
@@ -382,6 +744,14 @@
                 },
                 "id": {
                     "type": "string"
+                },
+                "is_outdoor": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "is_public": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "name": {
                     "type": "string",
@@ -413,6 +783,184 @@
                     "items": {
                         "$ref": "#/definitions/device.Device"
                     }
+                }
+            }
+        },
+        "device.RotateKeyResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/device.CreatedDevice"
+                }
+            }
+        },
+        "device.UpdateDeviceRequest": {
+            "type": "object",
+            "properties": {
+                "is_outdoor": {
+                    "type": "boolean"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "Balcony Sensor"
+                }
+            }
+        },
+        "device.UpdateDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/device.Device"
+                }
+            }
+        },
+        "devicereading.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string",
+                    "example": "pms_data is required"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Invalid request body"
+                }
+            }
+        },
+        "devicereading.Location": {
+            "type": "object",
+            "required": [
+                "lat",
+                "lon",
+                "provider"
+            ],
+            "properties": {
+                "lat": {
+                    "type": "number",
+                    "maximum": 90,
+                    "minimum": -90,
+                    "example": 24.8607
+                },
+                "lon": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180,
+                    "example": 67.0011
+                },
+                "provider": {
+                    "type": "string",
+                    "example": "mobile"
+                }
+            }
+        },
+        "devicereading.PMSData": {
+            "type": "object",
+            "required": [
+                "pm10_0",
+                "pm1_0",
+                "pm2_5",
+                "provider"
+            ],
+            "properties": {
+                "pm10_0": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 18.3
+                },
+                "pm1_0": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 5.2
+                },
+                "pm2_5": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 12.1
+                },
+                "provider": {
+                    "type": "string",
+                    "example": "pms5003"
+                }
+            }
+        },
+        "devicereading.TemperatureData": {
+            "type": "object",
+            "required": [
+                "heat_index",
+                "humidity",
+                "provider",
+                "temperature"
+            ],
+            "properties": {
+                "heat_index": {
+                    "type": "number",
+                    "example": 36.8
+                },
+                "humidity": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 64.5
+                },
+                "provider": {
+                    "type": "string",
+                    "example": "dht22"
+                },
+                "temperature": {
+                    "type": "number",
+                    "example": 31.2
+                }
+            }
+        },
+        "devicereading.UploadRequest": {
+            "type": "object",
+            "required": [
+                "aqi",
+                "pms_data",
+                "temperature_data"
+            ],
+            "properties": {
+                "aqi": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 57
+                },
+                "location": {
+                    "description": "Location is optional: the device may have no paired mobile at upload time.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/devicereading.Location"
+                        }
+                    ]
+                },
+                "pms_data": {
+                    "$ref": "#/definitions/devicereading.PMSData"
+                },
+                "temperature_data": {
+                    "$ref": "#/definitions/devicereading.TemperatureData"
+                }
+            }
+        },
+        "devicereading.UploadResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/devicereading.UploadedReading"
+                }
+            }
+        },
+        "devicereading.UploadedReading": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
                 }
             }
         }

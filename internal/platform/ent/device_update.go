@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"time"
 
@@ -18,8 +19,9 @@ import (
 // DeviceUpdate is the builder for updating Device entities.
 type DeviceUpdate struct {
 	config
-	hooks    []Hook
-	mutation *DeviceMutation
+	hooks     []Hook
+	mutation  *DeviceMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the DeviceUpdate builder.
@@ -38,6 +40,34 @@ func (_u *DeviceUpdate) SetName(v string) *DeviceUpdate {
 func (_u *DeviceUpdate) SetNillableName(v *string) *DeviceUpdate {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetIsOutdoor sets the "is_outdoor" field.
+func (_u *DeviceUpdate) SetIsOutdoor(v bool) *DeviceUpdate {
+	_u.mutation.SetIsOutdoor(v)
+	return _u
+}
+
+// SetNillableIsOutdoor sets the "is_outdoor" field if the given value is not nil.
+func (_u *DeviceUpdate) SetNillableIsOutdoor(v *bool) *DeviceUpdate {
+	if v != nil {
+		_u.SetIsOutdoor(*v)
+	}
+	return _u
+}
+
+// SetIsPublic sets the "is_public" field.
+func (_u *DeviceUpdate) SetIsPublic(v bool) *DeviceUpdate {
+	_u.mutation.SetIsPublic(v)
+	return _u
+}
+
+// SetNillableIsPublic sets the "is_public" field if the given value is not nil.
+func (_u *DeviceUpdate) SetNillableIsPublic(v *bool) *DeviceUpdate {
+	if v != nil {
+		_u.SetIsPublic(*v)
 	}
 	return _u
 }
@@ -62,9 +92,45 @@ func (_u *DeviceUpdate) SetUpdatedAt(v time.Time) *DeviceUpdate {
 	return _u
 }
 
+// AddReadingIDs adds the "readings" edge to the DeviceReading entity by IDs.
+func (_u *DeviceUpdate) AddReadingIDs(ids ...int) *DeviceUpdate {
+	_u.mutation.AddReadingIDs(ids...)
+	return _u
+}
+
+// AddReadings adds the "readings" edges to the DeviceReading entity.
+func (_u *DeviceUpdate) AddReadings(v ...*DeviceReading) *DeviceUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReadingIDs(ids...)
+}
+
 // Mutation returns the DeviceMutation object of the builder.
 func (_u *DeviceUpdate) Mutation() *DeviceMutation {
 	return _u.mutation
+}
+
+// ClearReadings clears all "readings" edges to the DeviceReading entity.
+func (_u *DeviceUpdate) ClearReadings() *DeviceUpdate {
+	_u.mutation.ClearReadings()
+	return _u
+}
+
+// RemoveReadingIDs removes the "readings" edge to DeviceReading entities by IDs.
+func (_u *DeviceUpdate) RemoveReadingIDs(ids ...int) *DeviceUpdate {
+	_u.mutation.RemoveReadingIDs(ids...)
+	return _u
+}
+
+// RemoveReadings removes "readings" edges to DeviceReading entities.
+func (_u *DeviceUpdate) RemoveReadings(v ...*DeviceReading) *DeviceUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReadingIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -118,6 +184,12 @@ func (_u *DeviceUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *DeviceUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DeviceUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -133,12 +205,64 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(device.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.IsOutdoor(); ok {
+		_spec.SetField(device.FieldIsOutdoor, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsPublic(); ok {
+		_spec.SetField(device.FieldIsPublic, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(device.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.ReadingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReadingsIDs(); len(nodes) > 0 && !_u.mutation.ReadingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReadingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{device.Label}
@@ -154,9 +278,10 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 // DeviceUpdateOne is the builder for updating a single Device entity.
 type DeviceUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *DeviceMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *DeviceMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetName sets the "name" field.
@@ -169,6 +294,34 @@ func (_u *DeviceUpdateOne) SetName(v string) *DeviceUpdateOne {
 func (_u *DeviceUpdateOne) SetNillableName(v *string) *DeviceUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetIsOutdoor sets the "is_outdoor" field.
+func (_u *DeviceUpdateOne) SetIsOutdoor(v bool) *DeviceUpdateOne {
+	_u.mutation.SetIsOutdoor(v)
+	return _u
+}
+
+// SetNillableIsOutdoor sets the "is_outdoor" field if the given value is not nil.
+func (_u *DeviceUpdateOne) SetNillableIsOutdoor(v *bool) *DeviceUpdateOne {
+	if v != nil {
+		_u.SetIsOutdoor(*v)
+	}
+	return _u
+}
+
+// SetIsPublic sets the "is_public" field.
+func (_u *DeviceUpdateOne) SetIsPublic(v bool) *DeviceUpdateOne {
+	_u.mutation.SetIsPublic(v)
+	return _u
+}
+
+// SetNillableIsPublic sets the "is_public" field if the given value is not nil.
+func (_u *DeviceUpdateOne) SetNillableIsPublic(v *bool) *DeviceUpdateOne {
+	if v != nil {
+		_u.SetIsPublic(*v)
 	}
 	return _u
 }
@@ -193,9 +346,45 @@ func (_u *DeviceUpdateOne) SetUpdatedAt(v time.Time) *DeviceUpdateOne {
 	return _u
 }
 
+// AddReadingIDs adds the "readings" edge to the DeviceReading entity by IDs.
+func (_u *DeviceUpdateOne) AddReadingIDs(ids ...int) *DeviceUpdateOne {
+	_u.mutation.AddReadingIDs(ids...)
+	return _u
+}
+
+// AddReadings adds the "readings" edges to the DeviceReading entity.
+func (_u *DeviceUpdateOne) AddReadings(v ...*DeviceReading) *DeviceUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReadingIDs(ids...)
+}
+
 // Mutation returns the DeviceMutation object of the builder.
 func (_u *DeviceUpdateOne) Mutation() *DeviceMutation {
 	return _u.mutation
+}
+
+// ClearReadings clears all "readings" edges to the DeviceReading entity.
+func (_u *DeviceUpdateOne) ClearReadings() *DeviceUpdateOne {
+	_u.mutation.ClearReadings()
+	return _u
+}
+
+// RemoveReadingIDs removes the "readings" edge to DeviceReading entities by IDs.
+func (_u *DeviceUpdateOne) RemoveReadingIDs(ids ...int) *DeviceUpdateOne {
+	_u.mutation.RemoveReadingIDs(ids...)
+	return _u
+}
+
+// RemoveReadings removes "readings" edges to DeviceReading entities.
+func (_u *DeviceUpdateOne) RemoveReadings(v ...*DeviceReading) *DeviceUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReadingIDs(ids...)
 }
 
 // Where appends a list predicates to the DeviceUpdate builder.
@@ -262,6 +451,12 @@ func (_u *DeviceUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *DeviceUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DeviceUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -294,12 +489,64 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(device.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.IsOutdoor(); ok {
+		_spec.SetField(device.FieldIsOutdoor, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsPublic(); ok {
+		_spec.SetField(device.FieldIsPublic, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(device.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if _u.mutation.ReadingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReadingsIDs(); len(nodes) > 0 && !_u.mutation.ReadingsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReadingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &Device{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

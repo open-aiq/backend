@@ -4,17 +4,50 @@ definitions:
     properties:
       aqi:
         type: integer
+      heat_index:
+        type: number
+      humidity:
+        type: number
       pm1_0:
         type: number
       pm2_5:
         type: number
       pm10_0:
         type: number
+      temperature:
+        type: number
+    type: object
+  airquality.CurrentAirQuality:
+    properties:
+      aqi:
+        type: integer
+      heat_index:
+        type: number
+      humidity:
+        type: number
+      last_seen:
+        type: string
+      location:
+        $ref: '#/definitions/airquality.Location'
+      pm1_0:
+        type: number
+      pm2_5:
+        type: number
+      pm10_0:
+        type: number
+      sample_count:
+        example: 6
+        type: integer
+      status:
+        example: online
+        type: string
+      temperature:
+        type: number
     type: object
   airquality.CurrentResponse:
     properties:
       data:
-        $ref: '#/definitions/airquality.AirQuality'
+        $ref: '#/definitions/airquality.CurrentAirQuality'
     type: object
   airquality.CustomRangeResponse:
     properties:
@@ -51,8 +84,28 @@ definitions:
         example: daily
         type: string
     type: object
+  airquality.Location:
+    properties:
+      lat:
+        example: 24.8607
+        type: number
+      lon:
+        example: 67.0011
+        type: number
+      provider:
+        example: mobile
+        type: string
+      timestamp:
+        type: string
+    type: object
   device.CreateDeviceRequest:
     properties:
+      is_outdoor:
+        example: false
+        type: boolean
+      is_public:
+        example: false
+        type: boolean
       name:
         example: Living Room Sensor
         type: string
@@ -76,6 +129,12 @@ definitions:
         type: string
       id:
         type: string
+      is_outdoor:
+        example: false
+        type: boolean
+      is_public:
+        example: false
+        type: boolean
       name:
         example: Living Room Sensor
         type: string
@@ -91,6 +150,12 @@ definitions:
         type: string
       id:
         type: string
+      is_outdoor:
+        example: false
+        type: boolean
+      is_public:
+        example: false
+        type: boolean
       name:
         example: Living Room Sensor
         type: string
@@ -113,6 +178,133 @@ definitions:
           $ref: '#/definitions/device.Device'
         type: array
     type: object
+  device.RotateKeyResponse:
+    properties:
+      data:
+        $ref: '#/definitions/device.CreatedDevice'
+    type: object
+  device.UpdateDeviceRequest:
+    properties:
+      is_outdoor:
+        type: boolean
+      is_public:
+        type: boolean
+      name:
+        example: Balcony Sensor
+        minLength: 1
+        type: string
+    type: object
+  device.UpdateDeviceResponse:
+    properties:
+      data:
+        $ref: '#/definitions/device.Device'
+    type: object
+  devicereading.ErrorResponse:
+    properties:
+      details:
+        example: pms_data is required
+        type: string
+      error:
+        example: Invalid request body
+        type: string
+    type: object
+  devicereading.Location:
+    properties:
+      lat:
+        example: 24.8607
+        maximum: 90
+        minimum: -90
+        type: number
+      lon:
+        example: 67.0011
+        maximum: 180
+        minimum: -180
+        type: number
+      provider:
+        example: mobile
+        type: string
+    required:
+    - lat
+    - lon
+    - provider
+    type: object
+  devicereading.PMSData:
+    properties:
+      pm1_0:
+        example: 5.2
+        minimum: 0
+        type: number
+      pm2_5:
+        example: 12.1
+        minimum: 0
+        type: number
+      pm10_0:
+        example: 18.3
+        minimum: 0
+        type: number
+      provider:
+        example: pms5003
+        type: string
+    required:
+    - pm10_0
+    - pm1_0
+    - pm2_5
+    - provider
+    type: object
+  devicereading.TemperatureData:
+    properties:
+      heat_index:
+        example: 36.8
+        type: number
+      humidity:
+        example: 64.5
+        maximum: 100
+        minimum: 0
+        type: number
+      provider:
+        example: dht22
+        type: string
+      temperature:
+        example: 31.2
+        type: number
+    required:
+    - heat_index
+    - humidity
+    - provider
+    - temperature
+    type: object
+  devicereading.UploadRequest:
+    properties:
+      aqi:
+        example: 57
+        minimum: 0
+        type: integer
+      location:
+        allOf:
+        - $ref: '#/definitions/devicereading.Location'
+        description: 'Location is optional: the device may have no paired mobile at
+          upload time.'
+      pms_data:
+        $ref: '#/definitions/devicereading.PMSData'
+      temperature_data:
+        $ref: '#/definitions/devicereading.TemperatureData'
+    required:
+    - aqi
+    - pms_data
+    - temperature_data
+    type: object
+  devicereading.UploadResponse:
+    properties:
+      data:
+        $ref: '#/definitions/devicereading.UploadedReading'
+    type: object
+  devicereading.UploadedReading:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -122,7 +314,9 @@ info:
 paths:
   /air-quality/current:
     get:
-      description: Returns the latest air quality reading
+      description: Returns sensor metrics averaged over the last hour, the device
+        status (offline when nothing was received for 20 minutes), the last_seen timestamp,
+        and the latest known location. 404 only when the device has never reported.
       produces:
       - application/json
       responses:
@@ -130,6 +324,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.CurrentResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -201,6 +399,52 @@ paths:
       summary: Get historical air quality data
       tags:
       - Air Quality
+  /data:
+    post:
+      consumes:
+      - application/json
+      description: Stores one full sensor reading (particulate matter, AQI, temperature,
+        optional location). The device authenticates with its X-Device-ID and X-Device-Key
+        headers.
+      parameters:
+      - description: Public device id (dev_...)
+        in: header
+        name: X-Device-ID
+        required: true
+        type: string
+      - description: Secret device key (sk_...)
+        in: header
+        name: X-Device-Key
+        required: true
+        type: string
+      - description: Sensor reading
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/devicereading.UploadRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/devicereading.UploadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/devicereading.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/devicereading.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/devicereading.ErrorResponse'
+      summary: Upload a sensor reading
+      tags:
+      - Device Data
   /devices:
     get:
       description: Returns all registered devices. Secret keys are never included.
@@ -275,6 +519,146 @@ paths:
           schema:
             $ref: '#/definitions/device.ErrorResponse'
       summary: Delete a device
+      tags:
+      - Devices
+    patch:
+      consumes:
+      - application/json
+      description: 'Partially updates a device: only the fields present in the body
+        (name, is_outdoor, is_public) are changed.'
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/device.UpdateDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/device.UpdateDeviceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+      summary: Update a device
+      tags:
+      - Devices
+  /devices/{id}/current:
+    get:
+      description: Same as /air-quality/current but restricted to a single device
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.CurrentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get current air quality for one device
+      tags:
+      - Air Quality
+  /devices/{id}/historical:
+    get:
+      description: Same as /air-quality/historical but restricted to a single device
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Timeline
+        enum:
+        - daily
+        - weekly
+        - monthly
+        - yearly
+        in: query
+        name: timeline
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.HistoricalResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get historical air quality data for one device
+      tags:
+      - Air Quality
+  /devices/{id}/rotate-key:
+    post:
+      description: Generates a new device_key for the device, invalidating the old
+        one immediately. The new key is shown only in this response; update the physical
+        device with it right away.
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/device.RotateKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+      summary: Rotate a device's secret key
       tags:
       - Devices
 swagger: "2.0"

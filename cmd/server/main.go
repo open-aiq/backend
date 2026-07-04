@@ -17,6 +17,7 @@ import (
 	"go-aiq-backend/docs"
 	"go-aiq-backend/internal/airquality"
 	"go-aiq-backend/internal/device"
+	"go-aiq-backend/internal/devicereading"
 	"go-aiq-backend/internal/platform/config"
 	"go-aiq-backend/internal/platform/database"
 	"go-aiq-backend/internal/platform/middleware"
@@ -45,13 +46,19 @@ func main() {
 	}
 	defer client.Close()
 
-	// Wire up the air quality domain.
-	// TODO: swap MockRepository for an Ent-backed repository once implemented.
-	service := airquality.NewService(airquality.NewMockRepository())
-	handler := airquality.NewHandler(service)
+	// Wire up the air quality domain (aggregated reads over device readings).
+	handler := airquality.NewHandler(airquality.NewService(airquality.NewEntRepository(client)))
 
-	// Wire up the device domain (Ent-backed).
-	deviceHandler := device.NewHandler(device.NewService(device.NewEntRepository(client)))
+	// Wire up the device domain. Its service doubles as the authenticator for
+	// device data uploads.
+	deviceService := device.NewService(device.NewEntRepository(client))
+	deviceHandler := device.NewHandler(deviceService)
+
+	// Wire up the device reading domain (data ingestion).
+	readingHandler := devicereading.NewHandler(
+		devicereading.NewService(devicereading.NewEntRepository(client)),
+		deviceService,
+	)
 
 	// Serve Swagger with a relative host so "Try it out" targets whatever
 	// origin served the docs (localhost in dev, the real domain in prod, or
@@ -72,6 +79,7 @@ func main() {
 	api := r.Group("/api/v1")
 	handler.RegisterRoutes(api)
 	deviceHandler.RegisterRoutes(api)
+	readingHandler.RegisterRoutes(api)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr(),

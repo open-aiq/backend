@@ -13,6 +13,8 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "device_id", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString},
+		{Name: "is_outdoor", Type: field.TypeBool, Default: false},
+		{Name: "is_public", Type: field.TypeBool, Default: false},
 		{Name: "device_key", Type: field.TypeString},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -26,38 +28,61 @@ var (
 			{
 				Name:    "device_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{DevicesColumns[4]},
+				Columns: []*schema.Column{DevicesColumns[6]},
 			},
 		},
 	}
-	// PmsReadingsColumns holds the columns for the "pms_readings" table.
-	PmsReadingsColumns = []*schema.Column{
+	// DeviceReadingsColumns holds the columns for the "device_readings" table.
+	DeviceReadingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "pm1_0", Type: field.TypeFloat64},
 		{Name: "pm2_5", Type: field.TypeFloat64},
 		{Name: "pm10_0", Type: field.TypeFloat64},
+		{Name: "pms_provider", Type: field.TypeString},
 		{Name: "aqi", Type: field.TypeInt},
+		{Name: "temperature", Type: field.TypeFloat64},
+		{Name: "humidity", Type: field.TypeFloat64},
+		{Name: "heat_index", Type: field.TypeFloat64},
+		{Name: "temperature_provider", Type: field.TypeString},
+		{Name: "lat", Type: field.TypeFloat64, Nullable: true},
+		{Name: "lon", Type: field.TypeFloat64, Nullable: true},
+		{Name: "location_provider", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "device_id", Type: field.TypeUUID},
 	}
-	// PmsReadingsTable holds the schema information for the "pms_readings" table.
-	PmsReadingsTable = &schema.Table{
-		Name:       "pms_readings",
-		Columns:    PmsReadingsColumns,
-		PrimaryKey: []*schema.Column{PmsReadingsColumns[0]},
+	// DeviceReadingsTable holds the schema information for the "device_readings" table.
+	DeviceReadingsTable = &schema.Table{
+		Name:       "device_readings",
+		Columns:    DeviceReadingsColumns,
+		PrimaryKey: []*schema.Column{DeviceReadingsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "device_readings_devices_readings",
+				Columns:    []*schema.Column{DeviceReadingsColumns[14]},
+				RefColumns: []*schema.Column{DevicesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "pmsreading_created_at",
+				Name:    "devicereading_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{PmsReadingsColumns[5]},
+				Columns: []*schema.Column{DeviceReadingsColumns[13]},
+			},
+			{
+				Name:    "devicereading_device_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{DeviceReadingsColumns[14], DeviceReadingsColumns[13]},
 			},
 		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		DevicesTable,
-		PmsReadingsTable,
+		DeviceReadingsTable,
 	}
 )
 
 func init() {
+	DeviceReadingsTable.ForeignKeys[0].RefTable = DevicesTable
 }

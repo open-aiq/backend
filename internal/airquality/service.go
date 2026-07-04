@@ -2,7 +2,22 @@ package airquality
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
+
+	"github.com/google/uuid"
+)
+
+// ErrNoData is returned when no readings exist at all.
+var ErrNoData = errors.New("no air quality data")
+
+const (
+	// currentWindow is how far back the "current" aggregate looks.
+	currentWindow = time.Hour
+	// offlineThreshold marks the device offline after two missed samples
+	// (devices report every 10 minutes).
+	offlineThreshold = 20 * time.Minute
 )
 
 // Service handles air quality business logic.
@@ -15,91 +30,128 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// GetCurrent returns the current air quality data.
-func (s *Service) GetCurrent(ctx context.Context) (*AirQuality, error) {
-	return s.repo.GetCurrent(ctx)
-}
+// GetCurrent returns metrics averaged over the last hour, the device status
+// (offline once the newest reading is older than offlineThreshold), and the
+// latest known location. A non-nil deviceID restricts everything to that
+// device; nil aggregates across all devices. It returns ErrNoData only when no
+// readings exist at all (device never reported).
+func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID) (*CurrentAirQuality, error) {
+	lastSeen, err := s.repo.LastSeen(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get current: %w", err)
+	}
+	if lastSeen == nil {
+		return nil, ErrNoData
+	}
 
-// GetHistorical returns historical air quality data based on the timeline filter.
-func (s *Service) GetHistorical(ctx context.Context, timeline string) ([]DataPoint, error) {
-	return s.repo.GetHistorical(ctx, timeline)
-}
+	status := StatusOnline
+	if time.Since(*lastSeen) > offlineThreshold {
+		status = StatusOffline
+	}
 
-// GetCustomRange returns air quality data for a custom date range.
-func (s *Service) GetCustomRange(ctx context.Context, start, end time.Time) ([]DataPoint, error) {
-	return s.repo.GetCustomRange(ctx, start, end)
-}
+	metrics, count, err := s.repo.AverageSince(ctx, time.Now().Add(-currentWindow), deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get current: %w", err)
+	}
+	if metrics == nil {
+		// Offline for longer than the window: nothing to average.
+		metrics = &AirQuality{}
+	}
 
-// MockRepository is a temporary in-memory implementation of Repository.
-type MockRepository struct{}
+	location, err := s.repo.LatestLocation(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get current: %w", err)
+	}
 
-func NewMockRepository() *MockRepository {
-	return &MockRepository{}
-}
-
-func (r *MockRepository) GetCurrent(_ context.Context) (*AirQuality, error) {
-	return &AirQuality{
-		PM10:  12.5,
-		PM25:  35.2,
-		PM100: 45.0,
-		AQI:   98,
+	return &CurrentAirQuality{
+		Status:      status,
+		LastSeen:    *lastSeen,
+		AirQuality:  *metrics,
+		SampleCount: count,
+		Location:    location,
 	}, nil
 }
 
-func (r *MockRepository) GetHistorical(_ context.Context, timeline string) ([]DataPoint, error) {
-	now := time.Now()
-	var points []DataPoint
-
-	switch timeline {
-	case "daily":
-		for i := range 24 {
-			points = append(points, DataPoint{
-				Timestamp: now.Add(time.Duration(-i) * time.Hour),
-				Label:     now.Add(time.Duration(-i) * time.Hour).Format("15:00"),
-				Metrics:   AirQuality{PM10: 11.0, PM25: 30.5, PM100: 40.0, AQI: 85},
-			})
-		}
-	case "weekly":
-		days := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
-		for i := range 7 {
-			points = append(points, DataPoint{
-				Timestamp: now.AddDate(0, 0, -i),
-				Label:     days[int(now.AddDate(0, 0, -i).Weekday())],
-				Metrics:   AirQuality{PM10: 14.2, PM25: 42.1, PM100: 55.0, AQI: 110},
-			})
-		}
-	case "monthly":
-		for i := 1; i <= 4; i++ {
-			points = append(points, DataPoint{
-				Timestamp: now.AddDate(0, 0, -i*7),
-				Label:     "Week " + string(rune(53-i)),
-				Metrics:   AirQuality{PM10: 9.8, PM25: 22.4, PM100: 31.0, AQI: 72},
-			})
-		}
-	case "yearly":
-		for i := range 12 {
-			t := now.AddDate(0, -i, 0)
-			points = append(points, DataPoint{
-				Timestamp: t,
-				Label:     t.Format("January"),
-				Metrics:   AirQuality{PM10: 15.0, PM25: 55.0, PM100: 68.0, AQI: 145},
-			})
-		}
-	}
-
-	return points, nil
+// timelineSpec defines how a timeline value maps to a query window, a
+// date_trunc bucket, and a point label.
+type timelineSpec struct {
+	start  time.Time
+	bucket string
+	label  func(time.Time) string
 }
 
-func (r *MockRepository) GetCustomRange(_ context.Context, start, end time.Time) ([]DataPoint, error) {
-	var points []DataPoint
+// spec returns the timelineSpec for a validated timeline value.
+func spec(timeline string, now time.Time) (timelineSpec, error) {
+	switch timeline {
+	case "daily": // last 24 hours by hour
+		return timelineSpec{
+			start:  now.Add(-24 * time.Hour),
+			bucket: "hour",
+			label:  func(t time.Time) string { return t.Format("15:04") },
+		}, nil
+	case "weekly": // last 7 days by day
+		return timelineSpec{
+			start:  now.AddDate(0, 0, -7),
+			bucket: "day",
+			label:  func(t time.Time) string { return t.Weekday().String() },
+		}, nil
+	case "monthly": // last 30 days by day
+		return timelineSpec{
+			start:  now.AddDate(0, 0, -30),
+			bucket: "day",
+			label:  func(t time.Time) string { return t.Format("2006-01-02") },
+		}, nil
+	case "yearly": // last 12 months by month
+		return timelineSpec{
+			start:  now.AddDate(-1, 0, 0),
+			bucket: "month",
+			label:  func(t time.Time) string { return t.Format("January") },
+		}, nil
+	default:
+		return timelineSpec{}, fmt.Errorf("invalid timeline %q", timeline)
+	}
+}
 
-	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
-		points = append(points, DataPoint{
-			Timestamp: d,
-			Label:     d.Format("2006-01-02"),
-			Metrics:   AirQuality{PM10: 13.0, PM25: 38.0, PM100: 50.0, AQI: 95},
-		})
+// GetHistorical returns bucketed averages for the given timeline: daily (24h by
+// hour), weekly (7 days by day), monthly (30 days by day), yearly (12 months by
+// month). A non-nil deviceID restricts the data to that device. Only buckets
+// containing data are returned.
+func (s *Service) GetHistorical(ctx context.Context, timeline string, deviceID *uuid.UUID) ([]DataPoint, error) {
+	now := time.Now()
+	ts, err := spec(timeline, now)
+	if err != nil {
+		return nil, err
 	}
 
-	return points, nil
+	buckets, err := s.repo.BucketedAverages(ctx, ts.start, now, ts.bucket, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get historical: %w", err)
+	}
+
+	return toDataPoints(buckets, ts.label), nil
+}
+
+// GetCustomRange returns daily averages between start and end (inclusive),
+// across all devices.
+func (s *Service) GetCustomRange(ctx context.Context, start, end time.Time) ([]DataPoint, error) {
+	// end is a date; extend it by a day so the whole end date is included.
+	buckets, err := s.repo.BucketedAverages(ctx, start, end.AddDate(0, 0, 1), "day", nil)
+	if err != nil {
+		return nil, fmt.Errorf("get custom range: %w", err)
+	}
+
+	return toDataPoints(buckets, func(t time.Time) string { return t.Format("2006-01-02") }), nil
+}
+
+// toDataPoints maps aggregated buckets to labeled API data points.
+func toDataPoints(buckets []BucketPoint, label func(time.Time) string) []DataPoint {
+	points := make([]DataPoint, 0, len(buckets))
+	for _, b := range buckets {
+		points = append(points, DataPoint{
+			Timestamp: b.Bucket,
+			Label:     label(b.Bucket),
+			Metrics:   b.Metrics,
+		})
+	}
+	return points
 }

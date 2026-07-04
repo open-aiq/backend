@@ -20,16 +20,16 @@ func (f DeviceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceMutation", m)
 }
 
-// The PMSReadingFunc type is an adapter to allow the use of ordinary
-// function as PMSReading mutator.
-type PMSReadingFunc func(context.Context, *ent.PMSReadingMutation) (ent.Value, error)
+// The DeviceReadingFunc type is an adapter to allow the use of ordinary
+// function as DeviceReading mutator.
+type DeviceReadingFunc func(context.Context, *ent.DeviceReadingMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f PMSReadingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.PMSReadingMutation); ok {
+func (f DeviceReadingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeviceReadingMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PMSReadingMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceReadingMutation", m)
 }
 
 // Condition is a hook condition function.

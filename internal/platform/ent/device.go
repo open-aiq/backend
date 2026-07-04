@@ -23,13 +23,38 @@ type Device struct {
 	DeviceID string `json:"device_id,omitempty"`
 	// Human-readable device name
 	Name string `json:"name,omitempty"`
-	// Secret device key ("sk_<random>"); rotatable on breach, never listed
+	// Whether the device is installed outdoors
+	IsOutdoor bool `json:"is_outdoor,omitempty"`
+	// Whether the owner shares this device's data publicly
+	IsPublic bool `json:"is_public,omitempty"`
+	// Hex SHA-256 digest of the secret device key ("sk_<random>"); the raw key is shown once at creation/rotation and never stored
 	DeviceKey string `json:"-"`
 	// When the device was registered
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// When the device was last updated
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the DeviceQuery when eager-loading is set.
+	Edges        DeviceEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// DeviceEdges holds the relations/edges for other nodes in the graph.
+type DeviceEdges struct {
+	// Readings holds the value of the readings edge.
+	Readings []*DeviceReading `json:"readings,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// ReadingsOrErr returns the Readings value or an error if the edge
+// was not loaded in eager-loading.
+func (e DeviceEdges) ReadingsOrErr() ([]*DeviceReading, error) {
+	if e.loadedTypes[0] {
+		return e.Readings, nil
+	}
+	return nil, &NotLoadedError{edge: "readings"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -37,6 +62,8 @@ func (*Device) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case device.FieldIsOutdoor, device.FieldIsPublic:
+			values[i] = new(sql.NullBool)
 		case device.FieldDeviceID, device.FieldName, device.FieldDeviceKey:
 			values[i] = new(sql.NullString)
 		case device.FieldCreatedAt, device.FieldUpdatedAt:
@@ -76,6 +103,18 @@ func (_m *Device) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Name = value.String
 			}
+		case device.FieldIsOutdoor:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_outdoor", values[i])
+			} else if value.Valid {
+				_m.IsOutdoor = value.Bool
+			}
+		case device.FieldIsPublic:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_public", values[i])
+			} else if value.Valid {
+				_m.IsPublic = value.Bool
+			}
 		case device.FieldDeviceKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field device_key", values[i])
@@ -107,6 +146,11 @@ func (_m *Device) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryReadings queries the "readings" edge of the Device entity.
+func (_m *Device) QueryReadings() *DeviceReadingQuery {
+	return NewDeviceClient(_m.config).QueryReadings(_m)
+}
+
 // Update returns a builder for updating this Device.
 // Note that you need to call Device.Unwrap() before calling this method if this Device
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -135,6 +179,12 @@ func (_m *Device) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("is_outdoor=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsOutdoor))
+	builder.WriteString(", ")
+	builder.WriteString("is_public=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsPublic))
 	builder.WriteString(", ")
 	builder.WriteString("device_key=<sensitive>")
 	builder.WriteString(", ")

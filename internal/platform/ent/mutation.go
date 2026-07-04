@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
-	"go-aiq-backend/internal/platform/ent/pmsreading"
+	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"sync"
 	"time"
@@ -26,25 +26,30 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeDevice     = "Device"
-	TypePMSReading = "PMSReading"
+	TypeDevice        = "Device"
+	TypeDeviceReading = "DeviceReading"
 )
 
 // DeviceMutation represents an operation that mutates the Device nodes in the graph.
 type DeviceMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	device_id     *string
-	name          *string
-	device_key    *string
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Device, error)
-	predicates    []predicate.Device
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	device_id       *string
+	name            *string
+	is_outdoor      *bool
+	is_public       *bool
+	device_key      *string
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	readings        map[int]struct{}
+	removedreadings map[int]struct{}
+	clearedreadings bool
+	done            bool
+	oldValue        func(context.Context) (*Device, error)
+	predicates      []predicate.Device
 }
 
 var _ ent.Mutation = (*DeviceMutation)(nil)
@@ -223,6 +228,78 @@ func (m *DeviceMutation) ResetName() {
 	m.name = nil
 }
 
+// SetIsOutdoor sets the "is_outdoor" field.
+func (m *DeviceMutation) SetIsOutdoor(b bool) {
+	m.is_outdoor = &b
+}
+
+// IsOutdoor returns the value of the "is_outdoor" field in the mutation.
+func (m *DeviceMutation) IsOutdoor() (r bool, exists bool) {
+	v := m.is_outdoor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsOutdoor returns the old "is_outdoor" field's value of the Device entity.
+// If the Device object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceMutation) OldIsOutdoor(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsOutdoor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsOutdoor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsOutdoor: %w", err)
+	}
+	return oldValue.IsOutdoor, nil
+}
+
+// ResetIsOutdoor resets all changes to the "is_outdoor" field.
+func (m *DeviceMutation) ResetIsOutdoor() {
+	m.is_outdoor = nil
+}
+
+// SetIsPublic sets the "is_public" field.
+func (m *DeviceMutation) SetIsPublic(b bool) {
+	m.is_public = &b
+}
+
+// IsPublic returns the value of the "is_public" field in the mutation.
+func (m *DeviceMutation) IsPublic() (r bool, exists bool) {
+	v := m.is_public
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsPublic returns the old "is_public" field's value of the Device entity.
+// If the Device object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceMutation) OldIsPublic(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsPublic is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsPublic requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsPublic: %w", err)
+	}
+	return oldValue.IsPublic, nil
+}
+
+// ResetIsPublic resets all changes to the "is_public" field.
+func (m *DeviceMutation) ResetIsPublic() {
+	m.is_public = nil
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (m *DeviceMutation) SetDeviceKey(s string) {
 	m.device_key = &s
@@ -331,6 +408,60 @@ func (m *DeviceMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddReadingIDs adds the "readings" edge to the DeviceReading entity by ids.
+func (m *DeviceMutation) AddReadingIDs(ids ...int) {
+	if m.readings == nil {
+		m.readings = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.readings[ids[i]] = struct{}{}
+	}
+}
+
+// ClearReadings clears the "readings" edge to the DeviceReading entity.
+func (m *DeviceMutation) ClearReadings() {
+	m.clearedreadings = true
+}
+
+// ReadingsCleared reports if the "readings" edge to the DeviceReading entity was cleared.
+func (m *DeviceMutation) ReadingsCleared() bool {
+	return m.clearedreadings
+}
+
+// RemoveReadingIDs removes the "readings" edge to the DeviceReading entity by IDs.
+func (m *DeviceMutation) RemoveReadingIDs(ids ...int) {
+	if m.removedreadings == nil {
+		m.removedreadings = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.readings, ids[i])
+		m.removedreadings[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedReadings returns the removed IDs of the "readings" edge to the DeviceReading entity.
+func (m *DeviceMutation) RemovedReadingsIDs() (ids []int) {
+	for id := range m.removedreadings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ReadingsIDs returns the "readings" edge IDs in the mutation.
+func (m *DeviceMutation) ReadingsIDs() (ids []int) {
+	for id := range m.readings {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetReadings resets all changes to the "readings" edge.
+func (m *DeviceMutation) ResetReadings() {
+	m.readings = nil
+	m.clearedreadings = false
+	m.removedreadings = nil
+}
+
 // Where appends a list predicates to the DeviceMutation builder.
 func (m *DeviceMutation) Where(ps ...predicate.Device) {
 	m.predicates = append(m.predicates, ps...)
@@ -365,12 +496,18 @@ func (m *DeviceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeviceMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 7)
 	if m.device_id != nil {
 		fields = append(fields, device.FieldDeviceID)
 	}
 	if m.name != nil {
 		fields = append(fields, device.FieldName)
+	}
+	if m.is_outdoor != nil {
+		fields = append(fields, device.FieldIsOutdoor)
+	}
+	if m.is_public != nil {
+		fields = append(fields, device.FieldIsPublic)
 	}
 	if m.device_key != nil {
 		fields = append(fields, device.FieldDeviceKey)
@@ -393,6 +530,10 @@ func (m *DeviceMutation) Field(name string) (ent.Value, bool) {
 		return m.DeviceID()
 	case device.FieldName:
 		return m.Name()
+	case device.FieldIsOutdoor:
+		return m.IsOutdoor()
+	case device.FieldIsPublic:
+		return m.IsPublic()
 	case device.FieldDeviceKey:
 		return m.DeviceKey()
 	case device.FieldCreatedAt:
@@ -412,6 +553,10 @@ func (m *DeviceMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldDeviceID(ctx)
 	case device.FieldName:
 		return m.OldName(ctx)
+	case device.FieldIsOutdoor:
+		return m.OldIsOutdoor(ctx)
+	case device.FieldIsPublic:
+		return m.OldIsPublic(ctx)
 	case device.FieldDeviceKey:
 		return m.OldDeviceKey(ctx)
 	case device.FieldCreatedAt:
@@ -440,6 +585,20 @@ func (m *DeviceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case device.FieldIsOutdoor:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsOutdoor(v)
+		return nil
+	case device.FieldIsPublic:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsPublic(v)
 		return nil
 	case device.FieldDeviceKey:
 		v, ok := value.(string)
@@ -517,6 +676,12 @@ func (m *DeviceMutation) ResetField(name string) error {
 	case device.FieldName:
 		m.ResetName()
 		return nil
+	case device.FieldIsOutdoor:
+		m.ResetIsOutdoor()
+		return nil
+	case device.FieldIsPublic:
+		m.ResetIsPublic()
+		return nil
 	case device.FieldDeviceKey:
 		m.ResetDeviceKey()
 		return nil
@@ -532,84 +697,135 @@ func (m *DeviceMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *DeviceMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.readings != nil {
+		edges = append(edges, device.EdgeReadings)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *DeviceMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case device.EdgeReadings:
+		ids := make([]ent.Value, 0, len(m.readings))
+		for id := range m.readings {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *DeviceMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedreadings != nil {
+		edges = append(edges, device.EdgeReadings)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *DeviceMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case device.EdgeReadings:
+		ids := make([]ent.Value, 0, len(m.removedreadings))
+		for id := range m.removedreadings {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *DeviceMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedreadings {
+		edges = append(edges, device.EdgeReadings)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *DeviceMutation) EdgeCleared(name string) bool {
+	switch name {
+	case device.EdgeReadings:
+		return m.clearedreadings
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *DeviceMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Device unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *DeviceMutation) ResetEdge(name string) error {
+	switch name {
+	case device.EdgeReadings:
+		m.ResetReadings()
+		return nil
+	}
 	return fmt.Errorf("unknown Device edge %s", name)
 }
 
-// PMSReadingMutation represents an operation that mutates the PMSReading nodes in the graph.
-type PMSReadingMutation struct {
+// DeviceReadingMutation represents an operation that mutates the DeviceReading nodes in the graph.
+type DeviceReadingMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	pm1_0         *float64
-	addpm1_0      *float64
-	pm2_5         *float64
-	addpm2_5      *float64
-	pm10_0        *float64
-	addpm10_0     *float64
-	aqi           *int
-	addaqi        *int
-	created_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*PMSReading, error)
-	predicates    []predicate.PMSReading
+	op                   Op
+	typ                  string
+	id                   *int
+	pm1_0                *float64
+	addpm1_0             *float64
+	pm2_5                *float64
+	addpm2_5             *float64
+	pm10_0               *float64
+	addpm10_0            *float64
+	pms_provider         *string
+	aqi                  *int
+	addaqi               *int
+	temperature          *float64
+	addtemperature       *float64
+	humidity             *float64
+	addhumidity          *float64
+	heat_index           *float64
+	addheat_index        *float64
+	temperature_provider *string
+	lat                  *float64
+	addlat               *float64
+	lon                  *float64
+	addlon               *float64
+	location_provider    *string
+	created_at           *time.Time
+	clearedFields        map[string]struct{}
+	device               *uuid.UUID
+	cleareddevice        bool
+	done                 bool
+	oldValue             func(context.Context) (*DeviceReading, error)
+	predicates           []predicate.DeviceReading
 }
 
-var _ ent.Mutation = (*PMSReadingMutation)(nil)
+var _ ent.Mutation = (*DeviceReadingMutation)(nil)
 
-// pmsreadingOption allows management of the mutation configuration using functional options.
-type pmsreadingOption func(*PMSReadingMutation)
+// devicereadingOption allows management of the mutation configuration using functional options.
+type devicereadingOption func(*DeviceReadingMutation)
 
-// newPMSReadingMutation creates new mutation for the PMSReading entity.
-func newPMSReadingMutation(c config, op Op, opts ...pmsreadingOption) *PMSReadingMutation {
-	m := &PMSReadingMutation{
+// newDeviceReadingMutation creates new mutation for the DeviceReading entity.
+func newDeviceReadingMutation(c config, op Op, opts ...devicereadingOption) *DeviceReadingMutation {
+	m := &DeviceReadingMutation{
 		config:        c,
 		op:            op,
-		typ:           TypePMSReading,
+		typ:           TypeDeviceReading,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -618,20 +834,20 @@ func newPMSReadingMutation(c config, op Op, opts ...pmsreadingOption) *PMSReadin
 	return m
 }
 
-// withPMSReadingID sets the ID field of the mutation.
-func withPMSReadingID(id int) pmsreadingOption {
-	return func(m *PMSReadingMutation) {
+// withDeviceReadingID sets the ID field of the mutation.
+func withDeviceReadingID(id int) devicereadingOption {
+	return func(m *DeviceReadingMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *PMSReading
+			value *DeviceReading
 		)
-		m.oldValue = func(ctx context.Context) (*PMSReading, error) {
+		m.oldValue = func(ctx context.Context) (*DeviceReading, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().PMSReading.Get(ctx, id)
+					value, err = m.Client().DeviceReading.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -640,10 +856,10 @@ func withPMSReadingID(id int) pmsreadingOption {
 	}
 }
 
-// withPMSReading sets the old PMSReading of the mutation.
-func withPMSReading(node *PMSReading) pmsreadingOption {
-	return func(m *PMSReadingMutation) {
-		m.oldValue = func(context.Context) (*PMSReading, error) {
+// withDeviceReading sets the old DeviceReading of the mutation.
+func withDeviceReading(node *DeviceReading) devicereadingOption {
+	return func(m *DeviceReadingMutation) {
+		m.oldValue = func(context.Context) (*DeviceReading, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -652,7 +868,7 @@ func withPMSReading(node *PMSReading) pmsreadingOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m PMSReadingMutation) Client() *Client {
+func (m DeviceReadingMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -660,7 +876,7 @@ func (m PMSReadingMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m PMSReadingMutation) Tx() (*Tx, error) {
+func (m DeviceReadingMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -671,7 +887,7 @@ func (m PMSReadingMutation) Tx() (*Tx, error) {
 
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *PMSReadingMutation) ID() (id int, exists bool) {
+func (m *DeviceReadingMutation) ID() (id int, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -682,7 +898,7 @@ func (m *PMSReadingMutation) ID() (id int, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *PMSReadingMutation) IDs(ctx context.Context) ([]int, error) {
+func (m *DeviceReadingMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
@@ -691,20 +907,56 @@ func (m *PMSReadingMutation) IDs(ctx context.Context) ([]int, error) {
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().PMSReading.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().DeviceReading.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
+// SetDeviceID sets the "device_id" field.
+func (m *DeviceReadingMutation) SetDeviceID(u uuid.UUID) {
+	m.device = &u
+}
+
+// DeviceID returns the value of the "device_id" field in the mutation.
+func (m *DeviceReadingMutation) DeviceID() (r uuid.UUID, exists bool) {
+	v := m.device
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceID returns the old "device_id" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldDeviceID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceID: %w", err)
+	}
+	return oldValue.DeviceID, nil
+}
+
+// ResetDeviceID resets all changes to the "device_id" field.
+func (m *DeviceReadingMutation) ResetDeviceID() {
+	m.device = nil
+}
+
 // SetPm10 sets the "pm1_0" field.
-func (m *PMSReadingMutation) SetPm10(f float64) {
+func (m *DeviceReadingMutation) SetPm10(f float64) {
 	m.pm1_0 = &f
 	m.addpm1_0 = nil
 }
 
 // Pm10 returns the value of the "pm1_0" field in the mutation.
-func (m *PMSReadingMutation) Pm10() (r float64, exists bool) {
+func (m *DeviceReadingMutation) Pm10() (r float64, exists bool) {
 	v := m.pm1_0
 	if v == nil {
 		return
@@ -712,10 +964,10 @@ func (m *PMSReadingMutation) Pm10() (r float64, exists bool) {
 	return *v, true
 }
 
-// OldPm10 returns the old "pm1_0" field's value of the PMSReading entity.
-// If the PMSReading object wasn't provided to the builder, the object is fetched from the database.
+// OldPm10 returns the old "pm1_0" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PMSReadingMutation) OldPm10(ctx context.Context) (v float64, err error) {
+func (m *DeviceReadingMutation) OldPm10(ctx context.Context) (v float64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPm10 is only allowed on UpdateOne operations")
 	}
@@ -730,7 +982,7 @@ func (m *PMSReadingMutation) OldPm10(ctx context.Context) (v float64, err error)
 }
 
 // AddPm10 adds f to the "pm1_0" field.
-func (m *PMSReadingMutation) AddPm10(f float64) {
+func (m *DeviceReadingMutation) AddPm10(f float64) {
 	if m.addpm1_0 != nil {
 		*m.addpm1_0 += f
 	} else {
@@ -739,7 +991,7 @@ func (m *PMSReadingMutation) AddPm10(f float64) {
 }
 
 // AddedPm10 returns the value that was added to the "pm1_0" field in this mutation.
-func (m *PMSReadingMutation) AddedPm10() (r float64, exists bool) {
+func (m *DeviceReadingMutation) AddedPm10() (r float64, exists bool) {
 	v := m.addpm1_0
 	if v == nil {
 		return
@@ -748,19 +1000,19 @@ func (m *PMSReadingMutation) AddedPm10() (r float64, exists bool) {
 }
 
 // ResetPm10 resets all changes to the "pm1_0" field.
-func (m *PMSReadingMutation) ResetPm10() {
+func (m *DeviceReadingMutation) ResetPm10() {
 	m.pm1_0 = nil
 	m.addpm1_0 = nil
 }
 
 // SetPm25 sets the "pm2_5" field.
-func (m *PMSReadingMutation) SetPm25(f float64) {
+func (m *DeviceReadingMutation) SetPm25(f float64) {
 	m.pm2_5 = &f
 	m.addpm2_5 = nil
 }
 
 // Pm25 returns the value of the "pm2_5" field in the mutation.
-func (m *PMSReadingMutation) Pm25() (r float64, exists bool) {
+func (m *DeviceReadingMutation) Pm25() (r float64, exists bool) {
 	v := m.pm2_5
 	if v == nil {
 		return
@@ -768,10 +1020,10 @@ func (m *PMSReadingMutation) Pm25() (r float64, exists bool) {
 	return *v, true
 }
 
-// OldPm25 returns the old "pm2_5" field's value of the PMSReading entity.
-// If the PMSReading object wasn't provided to the builder, the object is fetched from the database.
+// OldPm25 returns the old "pm2_5" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PMSReadingMutation) OldPm25(ctx context.Context) (v float64, err error) {
+func (m *DeviceReadingMutation) OldPm25(ctx context.Context) (v float64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPm25 is only allowed on UpdateOne operations")
 	}
@@ -786,7 +1038,7 @@ func (m *PMSReadingMutation) OldPm25(ctx context.Context) (v float64, err error)
 }
 
 // AddPm25 adds f to the "pm2_5" field.
-func (m *PMSReadingMutation) AddPm25(f float64) {
+func (m *DeviceReadingMutation) AddPm25(f float64) {
 	if m.addpm2_5 != nil {
 		*m.addpm2_5 += f
 	} else {
@@ -795,7 +1047,7 @@ func (m *PMSReadingMutation) AddPm25(f float64) {
 }
 
 // AddedPm25 returns the value that was added to the "pm2_5" field in this mutation.
-func (m *PMSReadingMutation) AddedPm25() (r float64, exists bool) {
+func (m *DeviceReadingMutation) AddedPm25() (r float64, exists bool) {
 	v := m.addpm2_5
 	if v == nil {
 		return
@@ -804,19 +1056,19 @@ func (m *PMSReadingMutation) AddedPm25() (r float64, exists bool) {
 }
 
 // ResetPm25 resets all changes to the "pm2_5" field.
-func (m *PMSReadingMutation) ResetPm25() {
+func (m *DeviceReadingMutation) ResetPm25() {
 	m.pm2_5 = nil
 	m.addpm2_5 = nil
 }
 
 // SetPm100 sets the "pm10_0" field.
-func (m *PMSReadingMutation) SetPm100(f float64) {
+func (m *DeviceReadingMutation) SetPm100(f float64) {
 	m.pm10_0 = &f
 	m.addpm10_0 = nil
 }
 
 // Pm100 returns the value of the "pm10_0" field in the mutation.
-func (m *PMSReadingMutation) Pm100() (r float64, exists bool) {
+func (m *DeviceReadingMutation) Pm100() (r float64, exists bool) {
 	v := m.pm10_0
 	if v == nil {
 		return
@@ -824,10 +1076,10 @@ func (m *PMSReadingMutation) Pm100() (r float64, exists bool) {
 	return *v, true
 }
 
-// OldPm100 returns the old "pm10_0" field's value of the PMSReading entity.
-// If the PMSReading object wasn't provided to the builder, the object is fetched from the database.
+// OldPm100 returns the old "pm10_0" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PMSReadingMutation) OldPm100(ctx context.Context) (v float64, err error) {
+func (m *DeviceReadingMutation) OldPm100(ctx context.Context) (v float64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPm100 is only allowed on UpdateOne operations")
 	}
@@ -842,7 +1094,7 @@ func (m *PMSReadingMutation) OldPm100(ctx context.Context) (v float64, err error
 }
 
 // AddPm100 adds f to the "pm10_0" field.
-func (m *PMSReadingMutation) AddPm100(f float64) {
+func (m *DeviceReadingMutation) AddPm100(f float64) {
 	if m.addpm10_0 != nil {
 		*m.addpm10_0 += f
 	} else {
@@ -851,7 +1103,7 @@ func (m *PMSReadingMutation) AddPm100(f float64) {
 }
 
 // AddedPm100 returns the value that was added to the "pm10_0" field in this mutation.
-func (m *PMSReadingMutation) AddedPm100() (r float64, exists bool) {
+func (m *DeviceReadingMutation) AddedPm100() (r float64, exists bool) {
 	v := m.addpm10_0
 	if v == nil {
 		return
@@ -860,19 +1112,55 @@ func (m *PMSReadingMutation) AddedPm100() (r float64, exists bool) {
 }
 
 // ResetPm100 resets all changes to the "pm10_0" field.
-func (m *PMSReadingMutation) ResetPm100() {
+func (m *DeviceReadingMutation) ResetPm100() {
 	m.pm10_0 = nil
 	m.addpm10_0 = nil
 }
 
+// SetPmsProvider sets the "pms_provider" field.
+func (m *DeviceReadingMutation) SetPmsProvider(s string) {
+	m.pms_provider = &s
+}
+
+// PmsProvider returns the value of the "pms_provider" field in the mutation.
+func (m *DeviceReadingMutation) PmsProvider() (r string, exists bool) {
+	v := m.pms_provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPmsProvider returns the old "pms_provider" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldPmsProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPmsProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPmsProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPmsProvider: %w", err)
+	}
+	return oldValue.PmsProvider, nil
+}
+
+// ResetPmsProvider resets all changes to the "pms_provider" field.
+func (m *DeviceReadingMutation) ResetPmsProvider() {
+	m.pms_provider = nil
+}
+
 // SetAqi sets the "aqi" field.
-func (m *PMSReadingMutation) SetAqi(i int) {
+func (m *DeviceReadingMutation) SetAqi(i int) {
 	m.aqi = &i
 	m.addaqi = nil
 }
 
 // Aqi returns the value of the "aqi" field in the mutation.
-func (m *PMSReadingMutation) Aqi() (r int, exists bool) {
+func (m *DeviceReadingMutation) Aqi() (r int, exists bool) {
 	v := m.aqi
 	if v == nil {
 		return
@@ -880,10 +1168,10 @@ func (m *PMSReadingMutation) Aqi() (r int, exists bool) {
 	return *v, true
 }
 
-// OldAqi returns the old "aqi" field's value of the PMSReading entity.
-// If the PMSReading object wasn't provided to the builder, the object is fetched from the database.
+// OldAqi returns the old "aqi" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PMSReadingMutation) OldAqi(ctx context.Context) (v int, err error) {
+func (m *DeviceReadingMutation) OldAqi(ctx context.Context) (v int, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAqi is only allowed on UpdateOne operations")
 	}
@@ -898,7 +1186,7 @@ func (m *PMSReadingMutation) OldAqi(ctx context.Context) (v int, err error) {
 }
 
 // AddAqi adds i to the "aqi" field.
-func (m *PMSReadingMutation) AddAqi(i int) {
+func (m *DeviceReadingMutation) AddAqi(i int) {
 	if m.addaqi != nil {
 		*m.addaqi += i
 	} else {
@@ -907,7 +1195,7 @@ func (m *PMSReadingMutation) AddAqi(i int) {
 }
 
 // AddedAqi returns the value that was added to the "aqi" field in this mutation.
-func (m *PMSReadingMutation) AddedAqi() (r int, exists bool) {
+func (m *DeviceReadingMutation) AddedAqi() (r int, exists bool) {
 	v := m.addaqi
 	if v == nil {
 		return
@@ -916,18 +1204,411 @@ func (m *PMSReadingMutation) AddedAqi() (r int, exists bool) {
 }
 
 // ResetAqi resets all changes to the "aqi" field.
-func (m *PMSReadingMutation) ResetAqi() {
+func (m *DeviceReadingMutation) ResetAqi() {
 	m.aqi = nil
 	m.addaqi = nil
 }
 
+// SetTemperature sets the "temperature" field.
+func (m *DeviceReadingMutation) SetTemperature(f float64) {
+	m.temperature = &f
+	m.addtemperature = nil
+}
+
+// Temperature returns the value of the "temperature" field in the mutation.
+func (m *DeviceReadingMutation) Temperature() (r float64, exists bool) {
+	v := m.temperature
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTemperature returns the old "temperature" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldTemperature(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTemperature is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTemperature requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTemperature: %w", err)
+	}
+	return oldValue.Temperature, nil
+}
+
+// AddTemperature adds f to the "temperature" field.
+func (m *DeviceReadingMutation) AddTemperature(f float64) {
+	if m.addtemperature != nil {
+		*m.addtemperature += f
+	} else {
+		m.addtemperature = &f
+	}
+}
+
+// AddedTemperature returns the value that was added to the "temperature" field in this mutation.
+func (m *DeviceReadingMutation) AddedTemperature() (r float64, exists bool) {
+	v := m.addtemperature
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTemperature resets all changes to the "temperature" field.
+func (m *DeviceReadingMutation) ResetTemperature() {
+	m.temperature = nil
+	m.addtemperature = nil
+}
+
+// SetHumidity sets the "humidity" field.
+func (m *DeviceReadingMutation) SetHumidity(f float64) {
+	m.humidity = &f
+	m.addhumidity = nil
+}
+
+// Humidity returns the value of the "humidity" field in the mutation.
+func (m *DeviceReadingMutation) Humidity() (r float64, exists bool) {
+	v := m.humidity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHumidity returns the old "humidity" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldHumidity(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHumidity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHumidity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHumidity: %w", err)
+	}
+	return oldValue.Humidity, nil
+}
+
+// AddHumidity adds f to the "humidity" field.
+func (m *DeviceReadingMutation) AddHumidity(f float64) {
+	if m.addhumidity != nil {
+		*m.addhumidity += f
+	} else {
+		m.addhumidity = &f
+	}
+}
+
+// AddedHumidity returns the value that was added to the "humidity" field in this mutation.
+func (m *DeviceReadingMutation) AddedHumidity() (r float64, exists bool) {
+	v := m.addhumidity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetHumidity resets all changes to the "humidity" field.
+func (m *DeviceReadingMutation) ResetHumidity() {
+	m.humidity = nil
+	m.addhumidity = nil
+}
+
+// SetHeatIndex sets the "heat_index" field.
+func (m *DeviceReadingMutation) SetHeatIndex(f float64) {
+	m.heat_index = &f
+	m.addheat_index = nil
+}
+
+// HeatIndex returns the value of the "heat_index" field in the mutation.
+func (m *DeviceReadingMutation) HeatIndex() (r float64, exists bool) {
+	v := m.heat_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHeatIndex returns the old "heat_index" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldHeatIndex(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHeatIndex is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHeatIndex requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHeatIndex: %w", err)
+	}
+	return oldValue.HeatIndex, nil
+}
+
+// AddHeatIndex adds f to the "heat_index" field.
+func (m *DeviceReadingMutation) AddHeatIndex(f float64) {
+	if m.addheat_index != nil {
+		*m.addheat_index += f
+	} else {
+		m.addheat_index = &f
+	}
+}
+
+// AddedHeatIndex returns the value that was added to the "heat_index" field in this mutation.
+func (m *DeviceReadingMutation) AddedHeatIndex() (r float64, exists bool) {
+	v := m.addheat_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetHeatIndex resets all changes to the "heat_index" field.
+func (m *DeviceReadingMutation) ResetHeatIndex() {
+	m.heat_index = nil
+	m.addheat_index = nil
+}
+
+// SetTemperatureProvider sets the "temperature_provider" field.
+func (m *DeviceReadingMutation) SetTemperatureProvider(s string) {
+	m.temperature_provider = &s
+}
+
+// TemperatureProvider returns the value of the "temperature_provider" field in the mutation.
+func (m *DeviceReadingMutation) TemperatureProvider() (r string, exists bool) {
+	v := m.temperature_provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTemperatureProvider returns the old "temperature_provider" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldTemperatureProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTemperatureProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTemperatureProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTemperatureProvider: %w", err)
+	}
+	return oldValue.TemperatureProvider, nil
+}
+
+// ResetTemperatureProvider resets all changes to the "temperature_provider" field.
+func (m *DeviceReadingMutation) ResetTemperatureProvider() {
+	m.temperature_provider = nil
+}
+
+// SetLat sets the "lat" field.
+func (m *DeviceReadingMutation) SetLat(f float64) {
+	m.lat = &f
+	m.addlat = nil
+}
+
+// Lat returns the value of the "lat" field in the mutation.
+func (m *DeviceReadingMutation) Lat() (r float64, exists bool) {
+	v := m.lat
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLat returns the old "lat" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldLat(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLat: %w", err)
+	}
+	return oldValue.Lat, nil
+}
+
+// AddLat adds f to the "lat" field.
+func (m *DeviceReadingMutation) AddLat(f float64) {
+	if m.addlat != nil {
+		*m.addlat += f
+	} else {
+		m.addlat = &f
+	}
+}
+
+// AddedLat returns the value that was added to the "lat" field in this mutation.
+func (m *DeviceReadingMutation) AddedLat() (r float64, exists bool) {
+	v := m.addlat
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLat clears the value of the "lat" field.
+func (m *DeviceReadingMutation) ClearLat() {
+	m.lat = nil
+	m.addlat = nil
+	m.clearedFields[devicereading.FieldLat] = struct{}{}
+}
+
+// LatCleared returns if the "lat" field was cleared in this mutation.
+func (m *DeviceReadingMutation) LatCleared() bool {
+	_, ok := m.clearedFields[devicereading.FieldLat]
+	return ok
+}
+
+// ResetLat resets all changes to the "lat" field.
+func (m *DeviceReadingMutation) ResetLat() {
+	m.lat = nil
+	m.addlat = nil
+	delete(m.clearedFields, devicereading.FieldLat)
+}
+
+// SetLon sets the "lon" field.
+func (m *DeviceReadingMutation) SetLon(f float64) {
+	m.lon = &f
+	m.addlon = nil
+}
+
+// Lon returns the value of the "lon" field in the mutation.
+func (m *DeviceReadingMutation) Lon() (r float64, exists bool) {
+	v := m.lon
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLon returns the old "lon" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldLon(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLon is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLon requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLon: %w", err)
+	}
+	return oldValue.Lon, nil
+}
+
+// AddLon adds f to the "lon" field.
+func (m *DeviceReadingMutation) AddLon(f float64) {
+	if m.addlon != nil {
+		*m.addlon += f
+	} else {
+		m.addlon = &f
+	}
+}
+
+// AddedLon returns the value that was added to the "lon" field in this mutation.
+func (m *DeviceReadingMutation) AddedLon() (r float64, exists bool) {
+	v := m.addlon
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearLon clears the value of the "lon" field.
+func (m *DeviceReadingMutation) ClearLon() {
+	m.lon = nil
+	m.addlon = nil
+	m.clearedFields[devicereading.FieldLon] = struct{}{}
+}
+
+// LonCleared returns if the "lon" field was cleared in this mutation.
+func (m *DeviceReadingMutation) LonCleared() bool {
+	_, ok := m.clearedFields[devicereading.FieldLon]
+	return ok
+}
+
+// ResetLon resets all changes to the "lon" field.
+func (m *DeviceReadingMutation) ResetLon() {
+	m.lon = nil
+	m.addlon = nil
+	delete(m.clearedFields, devicereading.FieldLon)
+}
+
+// SetLocationProvider sets the "location_provider" field.
+func (m *DeviceReadingMutation) SetLocationProvider(s string) {
+	m.location_provider = &s
+}
+
+// LocationProvider returns the value of the "location_provider" field in the mutation.
+func (m *DeviceReadingMutation) LocationProvider() (r string, exists bool) {
+	v := m.location_provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLocationProvider returns the old "location_provider" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceReadingMutation) OldLocationProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLocationProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLocationProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLocationProvider: %w", err)
+	}
+	return oldValue.LocationProvider, nil
+}
+
+// ClearLocationProvider clears the value of the "location_provider" field.
+func (m *DeviceReadingMutation) ClearLocationProvider() {
+	m.location_provider = nil
+	m.clearedFields[devicereading.FieldLocationProvider] = struct{}{}
+}
+
+// LocationProviderCleared returns if the "location_provider" field was cleared in this mutation.
+func (m *DeviceReadingMutation) LocationProviderCleared() bool {
+	_, ok := m.clearedFields[devicereading.FieldLocationProvider]
+	return ok
+}
+
+// ResetLocationProvider resets all changes to the "location_provider" field.
+func (m *DeviceReadingMutation) ResetLocationProvider() {
+	m.location_provider = nil
+	delete(m.clearedFields, devicereading.FieldLocationProvider)
+}
+
 // SetCreatedAt sets the "created_at" field.
-func (m *PMSReadingMutation) SetCreatedAt(t time.Time) {
+func (m *DeviceReadingMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
 }
 
 // CreatedAt returns the value of the "created_at" field in the mutation.
-func (m *PMSReadingMutation) CreatedAt() (r time.Time, exists bool) {
+func (m *DeviceReadingMutation) CreatedAt() (r time.Time, exists bool) {
 	v := m.created_at
 	if v == nil {
 		return
@@ -935,10 +1616,10 @@ func (m *PMSReadingMutation) CreatedAt() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldCreatedAt returns the old "created_at" field's value of the PMSReading entity.
-// If the PMSReading object wasn't provided to the builder, the object is fetched from the database.
+// OldCreatedAt returns the old "created_at" field's value of the DeviceReading entity.
+// If the DeviceReading object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PMSReadingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+func (m *DeviceReadingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
 	}
@@ -953,19 +1634,46 @@ func (m *PMSReadingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err
 }
 
 // ResetCreatedAt resets all changes to the "created_at" field.
-func (m *PMSReadingMutation) ResetCreatedAt() {
+func (m *DeviceReadingMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
-// Where appends a list predicates to the PMSReadingMutation builder.
-func (m *PMSReadingMutation) Where(ps ...predicate.PMSReading) {
+// ClearDevice clears the "device" edge to the Device entity.
+func (m *DeviceReadingMutation) ClearDevice() {
+	m.cleareddevice = true
+	m.clearedFields[devicereading.FieldDeviceID] = struct{}{}
+}
+
+// DeviceCleared reports if the "device" edge to the Device entity was cleared.
+func (m *DeviceReadingMutation) DeviceCleared() bool {
+	return m.cleareddevice
+}
+
+// DeviceIDs returns the "device" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DeviceID instead. It exists only for internal usage by the builders.
+func (m *DeviceReadingMutation) DeviceIDs() (ids []uuid.UUID) {
+	if id := m.device; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDevice resets all changes to the "device" edge.
+func (m *DeviceReadingMutation) ResetDevice() {
+	m.device = nil
+	m.cleareddevice = false
+}
+
+// Where appends a list predicates to the DeviceReadingMutation builder.
+func (m *DeviceReadingMutation) Where(ps ...predicate.DeviceReading) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the PMSReadingMutation builder. Using this method,
+// WhereP appends storage-level predicates to the DeviceReadingMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *PMSReadingMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.PMSReading, len(ps))
+func (m *DeviceReadingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DeviceReading, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -973,39 +1681,66 @@ func (m *PMSReadingMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *PMSReadingMutation) Op() Op {
+func (m *DeviceReadingMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *PMSReadingMutation) SetOp(op Op) {
+func (m *DeviceReadingMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (PMSReading).
-func (m *PMSReadingMutation) Type() string {
+// Type returns the node type of this mutation (DeviceReading).
+func (m *DeviceReadingMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *PMSReadingMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+func (m *DeviceReadingMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.device != nil {
+		fields = append(fields, devicereading.FieldDeviceID)
+	}
 	if m.pm1_0 != nil {
-		fields = append(fields, pmsreading.FieldPm10)
+		fields = append(fields, devicereading.FieldPm10)
 	}
 	if m.pm2_5 != nil {
-		fields = append(fields, pmsreading.FieldPm25)
+		fields = append(fields, devicereading.FieldPm25)
 	}
 	if m.pm10_0 != nil {
-		fields = append(fields, pmsreading.FieldPm100)
+		fields = append(fields, devicereading.FieldPm100)
+	}
+	if m.pms_provider != nil {
+		fields = append(fields, devicereading.FieldPmsProvider)
 	}
 	if m.aqi != nil {
-		fields = append(fields, pmsreading.FieldAqi)
+		fields = append(fields, devicereading.FieldAqi)
+	}
+	if m.temperature != nil {
+		fields = append(fields, devicereading.FieldTemperature)
+	}
+	if m.humidity != nil {
+		fields = append(fields, devicereading.FieldHumidity)
+	}
+	if m.heat_index != nil {
+		fields = append(fields, devicereading.FieldHeatIndex)
+	}
+	if m.temperature_provider != nil {
+		fields = append(fields, devicereading.FieldTemperatureProvider)
+	}
+	if m.lat != nil {
+		fields = append(fields, devicereading.FieldLat)
+	}
+	if m.lon != nil {
+		fields = append(fields, devicereading.FieldLon)
+	}
+	if m.location_provider != nil {
+		fields = append(fields, devicereading.FieldLocationProvider)
 	}
 	if m.created_at != nil {
-		fields = append(fields, pmsreading.FieldCreatedAt)
+		fields = append(fields, devicereading.FieldCreatedAt)
 	}
 	return fields
 }
@@ -1013,17 +1748,35 @@ func (m *PMSReadingMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *PMSReadingMutation) Field(name string) (ent.Value, bool) {
+func (m *DeviceReadingMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case pmsreading.FieldPm10:
+	case devicereading.FieldDeviceID:
+		return m.DeviceID()
+	case devicereading.FieldPm10:
 		return m.Pm10()
-	case pmsreading.FieldPm25:
+	case devicereading.FieldPm25:
 		return m.Pm25()
-	case pmsreading.FieldPm100:
+	case devicereading.FieldPm100:
 		return m.Pm100()
-	case pmsreading.FieldAqi:
+	case devicereading.FieldPmsProvider:
+		return m.PmsProvider()
+	case devicereading.FieldAqi:
 		return m.Aqi()
-	case pmsreading.FieldCreatedAt:
+	case devicereading.FieldTemperature:
+		return m.Temperature()
+	case devicereading.FieldHumidity:
+		return m.Humidity()
+	case devicereading.FieldHeatIndex:
+		return m.HeatIndex()
+	case devicereading.FieldTemperatureProvider:
+		return m.TemperatureProvider()
+	case devicereading.FieldLat:
+		return m.Lat()
+	case devicereading.FieldLon:
+		return m.Lon()
+	case devicereading.FieldLocationProvider:
+		return m.LocationProvider()
+	case devicereading.FieldCreatedAt:
 		return m.CreatedAt()
 	}
 	return nil, false
@@ -1032,56 +1785,137 @@ func (m *PMSReadingMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *PMSReadingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *DeviceReadingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case pmsreading.FieldPm10:
+	case devicereading.FieldDeviceID:
+		return m.OldDeviceID(ctx)
+	case devicereading.FieldPm10:
 		return m.OldPm10(ctx)
-	case pmsreading.FieldPm25:
+	case devicereading.FieldPm25:
 		return m.OldPm25(ctx)
-	case pmsreading.FieldPm100:
+	case devicereading.FieldPm100:
 		return m.OldPm100(ctx)
-	case pmsreading.FieldAqi:
+	case devicereading.FieldPmsProvider:
+		return m.OldPmsProvider(ctx)
+	case devicereading.FieldAqi:
 		return m.OldAqi(ctx)
-	case pmsreading.FieldCreatedAt:
+	case devicereading.FieldTemperature:
+		return m.OldTemperature(ctx)
+	case devicereading.FieldHumidity:
+		return m.OldHumidity(ctx)
+	case devicereading.FieldHeatIndex:
+		return m.OldHeatIndex(ctx)
+	case devicereading.FieldTemperatureProvider:
+		return m.OldTemperatureProvider(ctx)
+	case devicereading.FieldLat:
+		return m.OldLat(ctx)
+	case devicereading.FieldLon:
+		return m.OldLon(ctx)
+	case devicereading.FieldLocationProvider:
+		return m.OldLocationProvider(ctx)
+	case devicereading.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
-	return nil, fmt.Errorf("unknown PMSReading field %s", name)
+	return nil, fmt.Errorf("unknown DeviceReading field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *PMSReadingMutation) SetField(name string, value ent.Value) error {
+func (m *DeviceReadingMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case pmsreading.FieldPm10:
+	case devicereading.FieldDeviceID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceID(v)
+		return nil
+	case devicereading.FieldPm10:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPm10(v)
 		return nil
-	case pmsreading.FieldPm25:
+	case devicereading.FieldPm25:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPm25(v)
 		return nil
-	case pmsreading.FieldPm100:
+	case devicereading.FieldPm100:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPm100(v)
 		return nil
-	case pmsreading.FieldAqi:
+	case devicereading.FieldPmsProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPmsProvider(v)
+		return nil
+	case devicereading.FieldAqi:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAqi(v)
 		return nil
-	case pmsreading.FieldCreatedAt:
+	case devicereading.FieldTemperature:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTemperature(v)
+		return nil
+	case devicereading.FieldHumidity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHumidity(v)
+		return nil
+	case devicereading.FieldHeatIndex:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHeatIndex(v)
+		return nil
+	case devicereading.FieldTemperatureProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTemperatureProvider(v)
+		return nil
+	case devicereading.FieldLat:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLat(v)
+		return nil
+	case devicereading.FieldLon:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLon(v)
+		return nil
+	case devicereading.FieldLocationProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLocationProvider(v)
+		return nil
+	case devicereading.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
@@ -1089,24 +1923,39 @@ func (m *PMSReadingMutation) SetField(name string, value ent.Value) error {
 		m.SetCreatedAt(v)
 		return nil
 	}
-	return fmt.Errorf("unknown PMSReading field %s", name)
+	return fmt.Errorf("unknown DeviceReading field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *PMSReadingMutation) AddedFields() []string {
+func (m *DeviceReadingMutation) AddedFields() []string {
 	var fields []string
 	if m.addpm1_0 != nil {
-		fields = append(fields, pmsreading.FieldPm10)
+		fields = append(fields, devicereading.FieldPm10)
 	}
 	if m.addpm2_5 != nil {
-		fields = append(fields, pmsreading.FieldPm25)
+		fields = append(fields, devicereading.FieldPm25)
 	}
 	if m.addpm10_0 != nil {
-		fields = append(fields, pmsreading.FieldPm100)
+		fields = append(fields, devicereading.FieldPm100)
 	}
 	if m.addaqi != nil {
-		fields = append(fields, pmsreading.FieldAqi)
+		fields = append(fields, devicereading.FieldAqi)
+	}
+	if m.addtemperature != nil {
+		fields = append(fields, devicereading.FieldTemperature)
+	}
+	if m.addhumidity != nil {
+		fields = append(fields, devicereading.FieldHumidity)
+	}
+	if m.addheat_index != nil {
+		fields = append(fields, devicereading.FieldHeatIndex)
+	}
+	if m.addlat != nil {
+		fields = append(fields, devicereading.FieldLat)
+	}
+	if m.addlon != nil {
+		fields = append(fields, devicereading.FieldLon)
 	}
 	return fields
 }
@@ -1114,16 +1963,26 @@ func (m *PMSReadingMutation) AddedFields() []string {
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *PMSReadingMutation) AddedField(name string) (ent.Value, bool) {
+func (m *DeviceReadingMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
-	case pmsreading.FieldPm10:
+	case devicereading.FieldPm10:
 		return m.AddedPm10()
-	case pmsreading.FieldPm25:
+	case devicereading.FieldPm25:
 		return m.AddedPm25()
-	case pmsreading.FieldPm100:
+	case devicereading.FieldPm100:
 		return m.AddedPm100()
-	case pmsreading.FieldAqi:
+	case devicereading.FieldAqi:
 		return m.AddedAqi()
+	case devicereading.FieldTemperature:
+		return m.AddedTemperature()
+	case devicereading.FieldHumidity:
+		return m.AddedHumidity()
+	case devicereading.FieldHeatIndex:
+		return m.AddedHeatIndex()
+	case devicereading.FieldLat:
+		return m.AddedLat()
+	case devicereading.FieldLon:
+		return m.AddedLon()
 	}
 	return nil, false
 }
@@ -1131,126 +1990,235 @@ func (m *PMSReadingMutation) AddedField(name string) (ent.Value, bool) {
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *PMSReadingMutation) AddField(name string, value ent.Value) error {
+func (m *DeviceReadingMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case pmsreading.FieldPm10:
+	case devicereading.FieldPm10:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPm10(v)
 		return nil
-	case pmsreading.FieldPm25:
+	case devicereading.FieldPm25:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPm25(v)
 		return nil
-	case pmsreading.FieldPm100:
+	case devicereading.FieldPm100:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPm100(v)
 		return nil
-	case pmsreading.FieldAqi:
+	case devicereading.FieldAqi:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAqi(v)
 		return nil
+	case devicereading.FieldTemperature:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTemperature(v)
+		return nil
+	case devicereading.FieldHumidity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHumidity(v)
+		return nil
+	case devicereading.FieldHeatIndex:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHeatIndex(v)
+		return nil
+	case devicereading.FieldLat:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLat(v)
+		return nil
+	case devicereading.FieldLon:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLon(v)
+		return nil
 	}
-	return fmt.Errorf("unknown PMSReading numeric field %s", name)
+	return fmt.Errorf("unknown DeviceReading numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *PMSReadingMutation) ClearedFields() []string {
-	return nil
+func (m *DeviceReadingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(devicereading.FieldLat) {
+		fields = append(fields, devicereading.FieldLat)
+	}
+	if m.FieldCleared(devicereading.FieldLon) {
+		fields = append(fields, devicereading.FieldLon)
+	}
+	if m.FieldCleared(devicereading.FieldLocationProvider) {
+		fields = append(fields, devicereading.FieldLocationProvider)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *PMSReadingMutation) FieldCleared(name string) bool {
+func (m *DeviceReadingMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *PMSReadingMutation) ClearField(name string) error {
-	return fmt.Errorf("unknown PMSReading nullable field %s", name)
+func (m *DeviceReadingMutation) ClearField(name string) error {
+	switch name {
+	case devicereading.FieldLat:
+		m.ClearLat()
+		return nil
+	case devicereading.FieldLon:
+		m.ClearLon()
+		return nil
+	case devicereading.FieldLocationProvider:
+		m.ClearLocationProvider()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceReading nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *PMSReadingMutation) ResetField(name string) error {
+func (m *DeviceReadingMutation) ResetField(name string) error {
 	switch name {
-	case pmsreading.FieldPm10:
+	case devicereading.FieldDeviceID:
+		m.ResetDeviceID()
+		return nil
+	case devicereading.FieldPm10:
 		m.ResetPm10()
 		return nil
-	case pmsreading.FieldPm25:
+	case devicereading.FieldPm25:
 		m.ResetPm25()
 		return nil
-	case pmsreading.FieldPm100:
+	case devicereading.FieldPm100:
 		m.ResetPm100()
 		return nil
-	case pmsreading.FieldAqi:
+	case devicereading.FieldPmsProvider:
+		m.ResetPmsProvider()
+		return nil
+	case devicereading.FieldAqi:
 		m.ResetAqi()
 		return nil
-	case pmsreading.FieldCreatedAt:
+	case devicereading.FieldTemperature:
+		m.ResetTemperature()
+		return nil
+	case devicereading.FieldHumidity:
+		m.ResetHumidity()
+		return nil
+	case devicereading.FieldHeatIndex:
+		m.ResetHeatIndex()
+		return nil
+	case devicereading.FieldTemperatureProvider:
+		m.ResetTemperatureProvider()
+		return nil
+	case devicereading.FieldLat:
+		m.ResetLat()
+		return nil
+	case devicereading.FieldLon:
+		m.ResetLon()
+		return nil
+	case devicereading.FieldLocationProvider:
+		m.ResetLocationProvider()
+		return nil
+	case devicereading.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
 	}
-	return fmt.Errorf("unknown PMSReading field %s", name)
+	return fmt.Errorf("unknown DeviceReading field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *PMSReadingMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *DeviceReadingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.device != nil {
+		edges = append(edges, devicereading.EdgeDevice)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *PMSReadingMutation) AddedIDs(name string) []ent.Value {
+func (m *DeviceReadingMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case devicereading.EdgeDevice:
+		if id := m.device; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *PMSReadingMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *DeviceReadingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *PMSReadingMutation) RemovedIDs(name string) []ent.Value {
+func (m *DeviceReadingMutation) RemovedIDs(name string) []ent.Value {
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *PMSReadingMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+func (m *DeviceReadingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareddevice {
+		edges = append(edges, devicereading.EdgeDevice)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *PMSReadingMutation) EdgeCleared(name string) bool {
+func (m *DeviceReadingMutation) EdgeCleared(name string) bool {
+	switch name {
+	case devicereading.EdgeDevice:
+		return m.cleareddevice
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *PMSReadingMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown PMSReading unique edge %s", name)
+func (m *DeviceReadingMutation) ClearEdge(name string) error {
+	switch name {
+	case devicereading.EdgeDevice:
+		m.ClearDevice()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceReading unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *PMSReadingMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown PMSReading edge %s", name)
+func (m *DeviceReadingMutation) ResetEdge(name string) error {
+	switch name {
+	case devicereading.EdgeDevice:
+		m.ResetDevice()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceReading edge %s", name)
 }
