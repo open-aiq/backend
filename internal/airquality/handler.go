@@ -1,10 +1,12 @@
 package airquality
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // Handler holds dependencies for air quality HTTP handlers.
@@ -20,22 +22,69 @@ func NewHandler(service *Service) *Handler {
 // GetCurrent godoc
 //
 // @Summary Get current air quality
-// @Description Returns the latest air quality reading
+// @Description Returns sensor metrics averaged over the last hour, the device status (offline when nothing was received for 20 minutes), the last_seen timestamp, and the latest known location. 404 only when the device has never reported.
 // @Tags Air Quality
 // @Produce json
 //
 // @Success 200 {object} CurrentResponse
+// @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 //
 // @Router /air-quality/current [get]
 func (h *Handler) GetCurrent(c *gin.Context) {
-	current, err := h.service.GetCurrent(c.Request.Context())
+	h.respondCurrent(c, nil)
+}
+
+// GetDeviceCurrent godoc
+//
+// @Summary Get current air quality for one device
+// @Description Same as /air-quality/current but restricted to a single device
+// @Tags Air Quality
+// @Produce json
+//
+// @Param id path string true "Device id (UUID)"
+//
+// @Success 200 {object} CurrentResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+//
+// @Router /devices/{id}/current [get]
+func (h *Handler) GetDeviceCurrent(c *gin.Context) {
+	id, ok := deviceIDParam(c)
+	if !ok {
+		return
+	}
+	h.respondCurrent(c, &id)
+}
+
+// respondCurrent renders the current aggregate, optionally scoped to a device.
+func (h *Handler) respondCurrent(c *gin.Context, deviceID *uuid.UUID) {
+	current, err := h.service.GetCurrent(c.Request.Context(), deviceID)
 	if err != nil {
+		if errors.Is(err, ErrNoData) {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "No readings received yet"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get current data"})
 		return
 	}
 
 	c.IndentedJSON(http.StatusOK, CurrentResponse{Data: *current})
+}
+
+// deviceIDParam parses the :id path param as a UUID, responding with 400 on
+// failure.
+func deviceIDParam(c *gin.Context) (uuid.UUID, bool) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid device id",
+			Details: "id must be a UUID",
+		})
+		return uuid.Nil, false
+	}
+	return id, true
 }
 
 // GetHistorical godoc
@@ -53,6 +102,34 @@ func (h *Handler) GetCurrent(c *gin.Context) {
 //
 // @Router /air-quality/historical [get]
 func (h *Handler) GetHistorical(c *gin.Context) {
+	h.respondHistorical(c, nil)
+}
+
+// GetDeviceHistorical godoc
+//
+// @Summary Get historical air quality data for one device
+// @Description Same as /air-quality/historical but restricted to a single device
+// @Tags Air Quality
+// @Produce json
+//
+// @Param id path string true "Device id (UUID)"
+// @Param timeline query string true "Timeline" Enums(daily, weekly, monthly, yearly)
+//
+// @Success 200 {object} HistoricalResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+//
+// @Router /devices/{id}/historical [get]
+func (h *Handler) GetDeviceHistorical(c *gin.Context) {
+	id, ok := deviceIDParam(c)
+	if !ok {
+		return
+	}
+	h.respondHistorical(c, &id)
+}
+
+// respondHistorical renders the bucketed timeline, optionally scoped to a device.
+func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID) {
 	var query HistoricalQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -63,7 +140,7 @@ func (h *Handler) GetHistorical(c *gin.Context) {
 		return
 	}
 
-	data, err := h.service.GetHistorical(c.Request.Context(), query.Timeline)
+	data, err := h.service.GetHistorical(c.Request.Context(), query.Timeline, deviceID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get historical data"})
 		return

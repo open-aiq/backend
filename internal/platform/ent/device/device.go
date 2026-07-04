@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -18,14 +19,27 @@ const (
 	FieldDeviceID = "device_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldIsOutdoor holds the string denoting the is_outdoor field in the database.
+	FieldIsOutdoor = "is_outdoor"
+	// FieldIsPublic holds the string denoting the is_public field in the database.
+	FieldIsPublic = "is_public"
 	// FieldDeviceKey holds the string denoting the device_key field in the database.
 	FieldDeviceKey = "device_key"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeReadings holds the string denoting the readings edge name in mutations.
+	EdgeReadings = "readings"
 	// Table holds the table name of the device in the database.
 	Table = "devices"
+	// ReadingsTable is the table that holds the readings relation/edge.
+	ReadingsTable = "device_readings"
+	// ReadingsInverseTable is the table name for the DeviceReading entity.
+	// It exists in this package in order to avoid circular dependency with the "devicereading" package.
+	ReadingsInverseTable = "device_readings"
+	// ReadingsColumn is the table column denoting the readings relation/edge.
+	ReadingsColumn = "device_id"
 )
 
 // Columns holds all SQL columns for device fields.
@@ -33,6 +47,8 @@ var Columns = []string{
 	FieldID,
 	FieldDeviceID,
 	FieldName,
+	FieldIsOutdoor,
+	FieldIsPublic,
 	FieldDeviceKey,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -53,6 +69,10 @@ var (
 	DeviceIDValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultIsOutdoor holds the default value on creation for the "is_outdoor" field.
+	DefaultIsOutdoor bool
+	// DefaultIsPublic holds the default value on creation for the "is_public" field.
+	DefaultIsPublic bool
 	// DeviceKeyValidator is a validator for the "device_key" field. It is called by the builders before save.
 	DeviceKeyValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -83,6 +103,16 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
+// ByIsOutdoor orders the results by the is_outdoor field.
+func ByIsOutdoor(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsOutdoor, opts...).ToFunc()
+}
+
+// ByIsPublic orders the results by the is_public field.
+func ByIsPublic(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsPublic, opts...).ToFunc()
+}
+
 // ByDeviceKey orders the results by the device_key field.
 func ByDeviceKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeviceKey, opts...).ToFunc()
@@ -96,4 +126,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByReadingsCount orders the results by readings count.
+func ByReadingsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newReadingsStep(), opts...)
+	}
+}
+
+// ByReadings orders the results by readings terms.
+func ByReadings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReadingsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newReadingsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReadingsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ReadingsTable, ReadingsColumn),
+	)
 }

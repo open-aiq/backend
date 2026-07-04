@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicereading"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -30,6 +31,34 @@ func (_c *DeviceCreate) SetDeviceID(v string) *DeviceCreate {
 // SetName sets the "name" field.
 func (_c *DeviceCreate) SetName(v string) *DeviceCreate {
 	_c.mutation.SetName(v)
+	return _c
+}
+
+// SetIsOutdoor sets the "is_outdoor" field.
+func (_c *DeviceCreate) SetIsOutdoor(v bool) *DeviceCreate {
+	_c.mutation.SetIsOutdoor(v)
+	return _c
+}
+
+// SetNillableIsOutdoor sets the "is_outdoor" field if the given value is not nil.
+func (_c *DeviceCreate) SetNillableIsOutdoor(v *bool) *DeviceCreate {
+	if v != nil {
+		_c.SetIsOutdoor(*v)
+	}
+	return _c
+}
+
+// SetIsPublic sets the "is_public" field.
+func (_c *DeviceCreate) SetIsPublic(v bool) *DeviceCreate {
+	_c.mutation.SetIsPublic(v)
+	return _c
+}
+
+// SetNillableIsPublic sets the "is_public" field if the given value is not nil.
+func (_c *DeviceCreate) SetNillableIsPublic(v *bool) *DeviceCreate {
+	if v != nil {
+		_c.SetIsPublic(*v)
+	}
 	return _c
 }
 
@@ -81,6 +110,21 @@ func (_c *DeviceCreate) SetNillableID(v *uuid.UUID) *DeviceCreate {
 	return _c
 }
 
+// AddReadingIDs adds the "readings" edge to the DeviceReading entity by IDs.
+func (_c *DeviceCreate) AddReadingIDs(ids ...int) *DeviceCreate {
+	_c.mutation.AddReadingIDs(ids...)
+	return _c
+}
+
+// AddReadings adds the "readings" edges to the DeviceReading entity.
+func (_c *DeviceCreate) AddReadings(v ...*DeviceReading) *DeviceCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddReadingIDs(ids...)
+}
+
 // Mutation returns the DeviceMutation object of the builder.
 func (_c *DeviceCreate) Mutation() *DeviceMutation {
 	return _c.mutation
@@ -116,6 +160,14 @@ func (_c *DeviceCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *DeviceCreate) defaults() {
+	if _, ok := _c.mutation.IsOutdoor(); !ok {
+		v := device.DefaultIsOutdoor
+		_c.mutation.SetIsOutdoor(v)
+	}
+	if _, ok := _c.mutation.IsPublic(); !ok {
+		v := device.DefaultIsPublic
+		_c.mutation.SetIsPublic(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := device.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -147,6 +199,12 @@ func (_c *DeviceCreate) check() error {
 		if err := device.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Device.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.IsOutdoor(); !ok {
+		return &ValidationError{Name: "is_outdoor", err: errors.New(`ent: missing required field "Device.is_outdoor"`)}
+	}
+	if _, ok := _c.mutation.IsPublic(); !ok {
+		return &ValidationError{Name: "is_public", err: errors.New(`ent: missing required field "Device.is_public"`)}
 	}
 	if _, ok := _c.mutation.DeviceKey(); !ok {
 		return &ValidationError{Name: "device_key", err: errors.New(`ent: missing required field "Device.device_key"`)}
@@ -205,6 +263,14 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 		_spec.SetField(device.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.IsOutdoor(); ok {
+		_spec.SetField(device.FieldIsOutdoor, field.TypeBool, value)
+		_node.IsOutdoor = value
+	}
+	if value, ok := _c.mutation.IsPublic(); ok {
+		_spec.SetField(device.FieldIsPublic, field.TypeBool, value)
+		_node.IsPublic = value
+	}
 	if value, ok := _c.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)
 		_node.DeviceKey = value
@@ -216,6 +282,22 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(device.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.ReadingsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.ReadingsTable,
+			Columns: []string{device.ReadingsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -12,11 +12,12 @@ import (
 	"go-aiq-backend/internal/platform/ent/migrate"
 
 	"go-aiq-backend/internal/platform/ent/device"
-	"go-aiq-backend/internal/platform/ent/pmsreading"
+	"go-aiq-backend/internal/platform/ent/devicereading"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -27,8 +28,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// Device is the client for interacting with the Device builders.
 	Device *DeviceClient
-	// PMSReading is the client for interacting with the PMSReading builders.
-	PMSReading *PMSReadingClient
+	// DeviceReading is the client for interacting with the DeviceReading builders.
+	DeviceReading *DeviceReadingClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -41,7 +42,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Device = NewDeviceClient(c.config)
-	c.PMSReading = NewPMSReadingClient(c.config)
+	c.DeviceReading = NewDeviceReadingClient(c.config)
 }
 
 type (
@@ -132,10 +133,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		Device:     NewDeviceClient(cfg),
-		PMSReading: NewPMSReadingClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		Device:        NewDeviceClient(cfg),
+		DeviceReading: NewDeviceReadingClient(cfg),
 	}, nil
 }
 
@@ -153,10 +154,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		Device:     NewDeviceClient(cfg),
-		PMSReading: NewPMSReadingClient(cfg),
+		ctx:           ctx,
+		config:        cfg,
+		Device:        NewDeviceClient(cfg),
+		DeviceReading: NewDeviceReadingClient(cfg),
 	}, nil
 }
 
@@ -186,14 +187,14 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.Device.Use(hooks...)
-	c.PMSReading.Use(hooks...)
+	c.DeviceReading.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Device.Intercept(interceptors...)
-	c.PMSReading.Intercept(interceptors...)
+	c.DeviceReading.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -201,8 +202,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *DeviceMutation:
 		return c.Device.mutate(ctx, m)
-	case *PMSReadingMutation:
-		return c.PMSReading.mutate(ctx, m)
+	case *DeviceReadingMutation:
+		return c.DeviceReading.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -316,6 +317,22 @@ func (c *DeviceClient) GetX(ctx context.Context, id uuid.UUID) *Device {
 	return obj
 }
 
+// QueryReadings queries the readings edge of a Device.
+func (c *DeviceClient) QueryReadings(_m *Device) *DeviceReadingQuery {
+	query := (&DeviceReadingClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(device.Table, device.FieldID, id),
+			sqlgraph.To(devicereading.Table, devicereading.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, device.ReadingsTable, device.ReadingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *DeviceClient) Hooks() []Hook {
 	return c.hooks.Device
@@ -341,107 +358,107 @@ func (c *DeviceClient) mutate(ctx context.Context, m *DeviceMutation) (Value, er
 	}
 }
 
-// PMSReadingClient is a client for the PMSReading schema.
-type PMSReadingClient struct {
+// DeviceReadingClient is a client for the DeviceReading schema.
+type DeviceReadingClient struct {
 	config
 }
 
-// NewPMSReadingClient returns a client for the PMSReading from the given config.
-func NewPMSReadingClient(c config) *PMSReadingClient {
-	return &PMSReadingClient{config: c}
+// NewDeviceReadingClient returns a client for the DeviceReading from the given config.
+func NewDeviceReadingClient(c config) *DeviceReadingClient {
+	return &DeviceReadingClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `pmsreading.Hooks(f(g(h())))`.
-func (c *PMSReadingClient) Use(hooks ...Hook) {
-	c.hooks.PMSReading = append(c.hooks.PMSReading, hooks...)
+// A call to `Use(f, g, h)` equals to `devicereading.Hooks(f(g(h())))`.
+func (c *DeviceReadingClient) Use(hooks ...Hook) {
+	c.hooks.DeviceReading = append(c.hooks.DeviceReading, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `pmsreading.Intercept(f(g(h())))`.
-func (c *PMSReadingClient) Intercept(interceptors ...Interceptor) {
-	c.inters.PMSReading = append(c.inters.PMSReading, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `devicereading.Intercept(f(g(h())))`.
+func (c *DeviceReadingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeviceReading = append(c.inters.DeviceReading, interceptors...)
 }
 
-// Create returns a builder for creating a PMSReading entity.
-func (c *PMSReadingClient) Create() *PMSReadingCreate {
-	mutation := newPMSReadingMutation(c.config, OpCreate)
-	return &PMSReadingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a DeviceReading entity.
+func (c *DeviceReadingClient) Create() *DeviceReadingCreate {
+	mutation := newDeviceReadingMutation(c.config, OpCreate)
+	return &DeviceReadingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of PMSReading entities.
-func (c *PMSReadingClient) CreateBulk(builders ...*PMSReadingCreate) *PMSReadingCreateBulk {
-	return &PMSReadingCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of DeviceReading entities.
+func (c *DeviceReadingClient) CreateBulk(builders ...*DeviceReadingCreate) *DeviceReadingCreateBulk {
+	return &DeviceReadingCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *PMSReadingClient) MapCreateBulk(slice any, setFunc func(*PMSReadingCreate, int)) *PMSReadingCreateBulk {
+func (c *DeviceReadingClient) MapCreateBulk(slice any, setFunc func(*DeviceReadingCreate, int)) *DeviceReadingCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &PMSReadingCreateBulk{err: fmt.Errorf("calling to PMSReadingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &DeviceReadingCreateBulk{err: fmt.Errorf("calling to DeviceReadingClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*PMSReadingCreate, rv.Len())
+	builders := make([]*DeviceReadingCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &PMSReadingCreateBulk{config: c.config, builders: builders}
+	return &DeviceReadingCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for PMSReading.
-func (c *PMSReadingClient) Update() *PMSReadingUpdate {
-	mutation := newPMSReadingMutation(c.config, OpUpdate)
-	return &PMSReadingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for DeviceReading.
+func (c *DeviceReadingClient) Update() *DeviceReadingUpdate {
+	mutation := newDeviceReadingMutation(c.config, OpUpdate)
+	return &DeviceReadingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *PMSReadingClient) UpdateOne(_m *PMSReading) *PMSReadingUpdateOne {
-	mutation := newPMSReadingMutation(c.config, OpUpdateOne, withPMSReading(_m))
-	return &PMSReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *DeviceReadingClient) UpdateOne(_m *DeviceReading) *DeviceReadingUpdateOne {
+	mutation := newDeviceReadingMutation(c.config, OpUpdateOne, withDeviceReading(_m))
+	return &DeviceReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *PMSReadingClient) UpdateOneID(id int) *PMSReadingUpdateOne {
-	mutation := newPMSReadingMutation(c.config, OpUpdateOne, withPMSReadingID(id))
-	return &PMSReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *DeviceReadingClient) UpdateOneID(id int) *DeviceReadingUpdateOne {
+	mutation := newDeviceReadingMutation(c.config, OpUpdateOne, withDeviceReadingID(id))
+	return &DeviceReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for PMSReading.
-func (c *PMSReadingClient) Delete() *PMSReadingDelete {
-	mutation := newPMSReadingMutation(c.config, OpDelete)
-	return &PMSReadingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for DeviceReading.
+func (c *DeviceReadingClient) Delete() *DeviceReadingDelete {
+	mutation := newDeviceReadingMutation(c.config, OpDelete)
+	return &DeviceReadingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *PMSReadingClient) DeleteOne(_m *PMSReading) *PMSReadingDeleteOne {
+func (c *DeviceReadingClient) DeleteOne(_m *DeviceReading) *DeviceReadingDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *PMSReadingClient) DeleteOneID(id int) *PMSReadingDeleteOne {
-	builder := c.Delete().Where(pmsreading.ID(id))
+func (c *DeviceReadingClient) DeleteOneID(id int) *DeviceReadingDeleteOne {
+	builder := c.Delete().Where(devicereading.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &PMSReadingDeleteOne{builder}
+	return &DeviceReadingDeleteOne{builder}
 }
 
-// Query returns a query builder for PMSReading.
-func (c *PMSReadingClient) Query() *PMSReadingQuery {
-	return &PMSReadingQuery{
+// Query returns a query builder for DeviceReading.
+func (c *DeviceReadingClient) Query() *DeviceReadingQuery {
+	return &DeviceReadingQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypePMSReading},
+		ctx:    &QueryContext{Type: TypeDeviceReading},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a PMSReading entity by its id.
-func (c *PMSReadingClient) Get(ctx context.Context, id int) (*PMSReading, error) {
-	return c.Query().Where(pmsreading.ID(id)).Only(ctx)
+// Get returns a DeviceReading entity by its id.
+func (c *DeviceReadingClient) Get(ctx context.Context, id int) (*DeviceReading, error) {
+	return c.Query().Where(devicereading.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *PMSReadingClient) GetX(ctx context.Context, id int) *PMSReading {
+func (c *DeviceReadingClient) GetX(ctx context.Context, id int) *DeviceReading {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -449,37 +466,53 @@ func (c *PMSReadingClient) GetX(ctx context.Context, id int) *PMSReading {
 	return obj
 }
 
+// QueryDevice queries the device edge of a DeviceReading.
+func (c *DeviceReadingClient) QueryDevice(_m *DeviceReading) *DeviceQuery {
+	query := (&DeviceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(devicereading.Table, devicereading.FieldID, id),
+			sqlgraph.To(device.Table, device.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, devicereading.DeviceTable, devicereading.DeviceColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
-func (c *PMSReadingClient) Hooks() []Hook {
-	return c.hooks.PMSReading
+func (c *DeviceReadingClient) Hooks() []Hook {
+	return c.hooks.DeviceReading
 }
 
 // Interceptors returns the client interceptors.
-func (c *PMSReadingClient) Interceptors() []Interceptor {
-	return c.inters.PMSReading
+func (c *DeviceReadingClient) Interceptors() []Interceptor {
+	return c.inters.DeviceReading
 }
 
-func (c *PMSReadingClient) mutate(ctx context.Context, m *PMSReadingMutation) (Value, error) {
+func (c *DeviceReadingClient) mutate(ctx context.Context, m *DeviceReadingMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&PMSReadingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&DeviceReadingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&PMSReadingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&DeviceReadingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&PMSReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&DeviceReadingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&PMSReadingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&DeviceReadingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown PMSReading mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown DeviceReading mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Device, PMSReading []ent.Hook
+		Device, DeviceReading []ent.Hook
 	}
 	inters struct {
-		Device, PMSReading []ent.Interceptor
+		Device, DeviceReading []ent.Interceptor
 	}
 )

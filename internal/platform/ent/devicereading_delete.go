@@ -4,7 +4,7 @@ package ent
 
 import (
 	"context"
-	"go-aiq-backend/internal/platform/ent/pmsreading"
+	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
@@ -12,26 +12,26 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// PMSReadingDelete is the builder for deleting a PMSReading entity.
-type PMSReadingDelete struct {
+// DeviceReadingDelete is the builder for deleting a DeviceReading entity.
+type DeviceReadingDelete struct {
 	config
 	hooks    []Hook
-	mutation *PMSReadingMutation
+	mutation *DeviceReadingMutation
 }
 
-// Where appends a list predicates to the PMSReadingDelete builder.
-func (_d *PMSReadingDelete) Where(ps ...predicate.PMSReading) *PMSReadingDelete {
+// Where appends a list predicates to the DeviceReadingDelete builder.
+func (_d *DeviceReadingDelete) Where(ps ...predicate.DeviceReading) *DeviceReadingDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *PMSReadingDelete) Exec(ctx context.Context) (int, error) {
+func (_d *DeviceReadingDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *PMSReadingDelete) ExecX(ctx context.Context) int {
+func (_d *DeviceReadingDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *PMSReadingDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *PMSReadingDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(pmsreading.Table, sqlgraph.NewFieldSpec(pmsreading.FieldID, field.TypeInt))
+func (_d *DeviceReadingDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(devicereading.Table, sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *PMSReadingDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// PMSReadingDeleteOne is the builder for deleting a single PMSReading entity.
-type PMSReadingDeleteOne struct {
-	_d *PMSReadingDelete
+// DeviceReadingDeleteOne is the builder for deleting a single DeviceReading entity.
+type DeviceReadingDeleteOne struct {
+	_d *DeviceReadingDelete
 }
 
-// Where appends a list predicates to the PMSReadingDelete builder.
-func (_d *PMSReadingDeleteOne) Where(ps ...predicate.PMSReading) *PMSReadingDeleteOne {
+// Where appends a list predicates to the DeviceReadingDelete builder.
+func (_d *DeviceReadingDeleteOne) Where(ps ...predicate.DeviceReading) *DeviceReadingDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *PMSReadingDeleteOne) Exec(ctx context.Context) error {
+func (_d *DeviceReadingDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{pmsreading.Label}
+		return &NotFoundError{devicereading.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *PMSReadingDeleteOne) ExecX(ctx context.Context) {
+func (_d *DeviceReadingDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

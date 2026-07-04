@@ -4,7 +4,7 @@ package ent
 
 import (
 	"go-aiq-backend/internal/platform/ent/device"
-	"go-aiq-backend/internal/platform/ent/pmsreading"
+	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/schema"
 	"time"
 
@@ -25,16 +25,24 @@ func init() {
 	deviceDescName := deviceFields[2].Descriptor()
 	// device.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	device.NameValidator = deviceDescName.Validators[0].(func(string) error)
+	// deviceDescIsOutdoor is the schema descriptor for is_outdoor field.
+	deviceDescIsOutdoor := deviceFields[3].Descriptor()
+	// device.DefaultIsOutdoor holds the default value on creation for the is_outdoor field.
+	device.DefaultIsOutdoor = deviceDescIsOutdoor.Default.(bool)
+	// deviceDescIsPublic is the schema descriptor for is_public field.
+	deviceDescIsPublic := deviceFields[4].Descriptor()
+	// device.DefaultIsPublic holds the default value on creation for the is_public field.
+	device.DefaultIsPublic = deviceDescIsPublic.Default.(bool)
 	// deviceDescDeviceKey is the schema descriptor for device_key field.
-	deviceDescDeviceKey := deviceFields[3].Descriptor()
+	deviceDescDeviceKey := deviceFields[5].Descriptor()
 	// device.DeviceKeyValidator is a validator for the "device_key" field. It is called by the builders before save.
 	device.DeviceKeyValidator = deviceDescDeviceKey.Validators[0].(func(string) error)
 	// deviceDescCreatedAt is the schema descriptor for created_at field.
-	deviceDescCreatedAt := deviceFields[4].Descriptor()
+	deviceDescCreatedAt := deviceFields[6].Descriptor()
 	// device.DefaultCreatedAt holds the default value on creation for the created_at field.
 	device.DefaultCreatedAt = deviceDescCreatedAt.Default.(func() time.Time)
 	// deviceDescUpdatedAt is the schema descriptor for updated_at field.
-	deviceDescUpdatedAt := deviceFields[5].Descriptor()
+	deviceDescUpdatedAt := deviceFields[7].Descriptor()
 	// device.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	device.DefaultUpdatedAt = deviceDescUpdatedAt.Default.(func() time.Time)
 	// device.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -43,26 +51,88 @@ func init() {
 	deviceDescID := deviceFields[0].Descriptor()
 	// device.DefaultID holds the default value on creation for the id field.
 	device.DefaultID = deviceDescID.Default.(func() uuid.UUID)
-	pmsreadingFields := schema.PMSReading{}.Fields()
-	_ = pmsreadingFields
-	// pmsreadingDescPm10 is the schema descriptor for pm1_0 field.
-	pmsreadingDescPm10 := pmsreadingFields[0].Descriptor()
-	// pmsreading.Pm10Validator is a validator for the "pm1_0" field. It is called by the builders before save.
-	pmsreading.Pm10Validator = pmsreadingDescPm10.Validators[0].(func(float64) error)
-	// pmsreadingDescPm25 is the schema descriptor for pm2_5 field.
-	pmsreadingDescPm25 := pmsreadingFields[1].Descriptor()
-	// pmsreading.Pm25Validator is a validator for the "pm2_5" field. It is called by the builders before save.
-	pmsreading.Pm25Validator = pmsreadingDescPm25.Validators[0].(func(float64) error)
-	// pmsreadingDescPm100 is the schema descriptor for pm10_0 field.
-	pmsreadingDescPm100 := pmsreadingFields[2].Descriptor()
-	// pmsreading.Pm100Validator is a validator for the "pm10_0" field. It is called by the builders before save.
-	pmsreading.Pm100Validator = pmsreadingDescPm100.Validators[0].(func(float64) error)
-	// pmsreadingDescAqi is the schema descriptor for aqi field.
-	pmsreadingDescAqi := pmsreadingFields[3].Descriptor()
-	// pmsreading.AqiValidator is a validator for the "aqi" field. It is called by the builders before save.
-	pmsreading.AqiValidator = pmsreadingDescAqi.Validators[0].(func(int) error)
-	// pmsreadingDescCreatedAt is the schema descriptor for created_at field.
-	pmsreadingDescCreatedAt := pmsreadingFields[4].Descriptor()
-	// pmsreading.DefaultCreatedAt holds the default value on creation for the created_at field.
-	pmsreading.DefaultCreatedAt = pmsreadingDescCreatedAt.Default.(func() time.Time)
+	devicereadingFields := schema.DeviceReading{}.Fields()
+	_ = devicereadingFields
+	// devicereadingDescPm10 is the schema descriptor for pm1_0 field.
+	devicereadingDescPm10 := devicereadingFields[1].Descriptor()
+	// devicereading.Pm10Validator is a validator for the "pm1_0" field. It is called by the builders before save.
+	devicereading.Pm10Validator = devicereadingDescPm10.Validators[0].(func(float64) error)
+	// devicereadingDescPm25 is the schema descriptor for pm2_5 field.
+	devicereadingDescPm25 := devicereadingFields[2].Descriptor()
+	// devicereading.Pm25Validator is a validator for the "pm2_5" field. It is called by the builders before save.
+	devicereading.Pm25Validator = devicereadingDescPm25.Validators[0].(func(float64) error)
+	// devicereadingDescPm100 is the schema descriptor for pm10_0 field.
+	devicereadingDescPm100 := devicereadingFields[3].Descriptor()
+	// devicereading.Pm100Validator is a validator for the "pm10_0" field. It is called by the builders before save.
+	devicereading.Pm100Validator = devicereadingDescPm100.Validators[0].(func(float64) error)
+	// devicereadingDescPmsProvider is the schema descriptor for pms_provider field.
+	devicereadingDescPmsProvider := devicereadingFields[4].Descriptor()
+	// devicereading.PmsProviderValidator is a validator for the "pms_provider" field. It is called by the builders before save.
+	devicereading.PmsProviderValidator = devicereadingDescPmsProvider.Validators[0].(func(string) error)
+	// devicereadingDescAqi is the schema descriptor for aqi field.
+	devicereadingDescAqi := devicereadingFields[5].Descriptor()
+	// devicereading.AqiValidator is a validator for the "aqi" field. It is called by the builders before save.
+	devicereading.AqiValidator = devicereadingDescAqi.Validators[0].(func(int) error)
+	// devicereadingDescHumidity is the schema descriptor for humidity field.
+	devicereadingDescHumidity := devicereadingFields[7].Descriptor()
+	// devicereading.HumidityValidator is a validator for the "humidity" field. It is called by the builders before save.
+	devicereading.HumidityValidator = func() func(float64) error {
+		validators := devicereadingDescHumidity.Validators
+		fns := [...]func(float64) error{
+			validators[0].(func(float64) error),
+			validators[1].(func(float64) error),
+		}
+		return func(humidity float64) error {
+			for _, fn := range fns {
+				if err := fn(humidity); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// devicereadingDescTemperatureProvider is the schema descriptor for temperature_provider field.
+	devicereadingDescTemperatureProvider := devicereadingFields[9].Descriptor()
+	// devicereading.TemperatureProviderValidator is a validator for the "temperature_provider" field. It is called by the builders before save.
+	devicereading.TemperatureProviderValidator = devicereadingDescTemperatureProvider.Validators[0].(func(string) error)
+	// devicereadingDescLat is the schema descriptor for lat field.
+	devicereadingDescLat := devicereadingFields[10].Descriptor()
+	// devicereading.LatValidator is a validator for the "lat" field. It is called by the builders before save.
+	devicereading.LatValidator = func() func(float64) error {
+		validators := devicereadingDescLat.Validators
+		fns := [...]func(float64) error{
+			validators[0].(func(float64) error),
+			validators[1].(func(float64) error),
+		}
+		return func(lat float64) error {
+			for _, fn := range fns {
+				if err := fn(lat); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// devicereadingDescLon is the schema descriptor for lon field.
+	devicereadingDescLon := devicereadingFields[11].Descriptor()
+	// devicereading.LonValidator is a validator for the "lon" field. It is called by the builders before save.
+	devicereading.LonValidator = func() func(float64) error {
+		validators := devicereadingDescLon.Validators
+		fns := [...]func(float64) error{
+			validators[0].(func(float64) error),
+			validators[1].(func(float64) error),
+		}
+		return func(lon float64) error {
+			for _, fn := range fns {
+				if err := fn(lon); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// devicereadingDescCreatedAt is the schema descriptor for created_at field.
+	devicereadingDescCreatedAt := devicereadingFields[13].Descriptor()
+	// devicereading.DefaultCreatedAt holds the default value on creation for the created_at field.
+	devicereading.DefaultCreatedAt = devicereadingDescCreatedAt.Default.(func() time.Time)
 }

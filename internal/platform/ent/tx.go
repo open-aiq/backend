@@ -14,8 +14,8 @@ type Tx struct {
 	config
 	// Device is the client for interacting with the Device builders.
 	Device *DeviceClient
-	// PMSReading is the client for interacting with the PMSReading builders.
-	PMSReading *PMSReadingClient
+	// DeviceReading is the client for interacting with the DeviceReading builders.
+	DeviceReading *DeviceReadingClient
 
 	// lazily loaded.
 	client     *Client
@@ -148,7 +148,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Device = NewDeviceClient(tx.config)
-	tx.PMSReading = NewPMSReadingClient(tx.config)
+	tx.DeviceReading = NewDeviceReadingClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

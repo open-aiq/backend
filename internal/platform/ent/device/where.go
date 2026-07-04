@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -63,6 +64,16 @@ func DeviceID(v string) predicate.Device {
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.Device {
 	return predicate.Device(sql.FieldEQ(FieldName, v))
+}
+
+// IsOutdoor applies equality check predicate on the "is_outdoor" field. It's identical to IsOutdoorEQ.
+func IsOutdoor(v bool) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldIsOutdoor, v))
+}
+
+// IsPublic applies equality check predicate on the "is_public" field. It's identical to IsPublicEQ.
+func IsPublic(v bool) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldIsPublic, v))
 }
 
 // DeviceKey applies equality check predicate on the "device_key" field. It's identical to DeviceKeyEQ.
@@ -210,6 +221,26 @@ func NameContainsFold(v string) predicate.Device {
 	return predicate.Device(sql.FieldContainsFold(FieldName, v))
 }
 
+// IsOutdoorEQ applies the EQ predicate on the "is_outdoor" field.
+func IsOutdoorEQ(v bool) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldIsOutdoor, v))
+}
+
+// IsOutdoorNEQ applies the NEQ predicate on the "is_outdoor" field.
+func IsOutdoorNEQ(v bool) predicate.Device {
+	return predicate.Device(sql.FieldNEQ(FieldIsOutdoor, v))
+}
+
+// IsPublicEQ applies the EQ predicate on the "is_public" field.
+func IsPublicEQ(v bool) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldIsPublic, v))
+}
+
+// IsPublicNEQ applies the NEQ predicate on the "is_public" field.
+func IsPublicNEQ(v bool) predicate.Device {
+	return predicate.Device(sql.FieldNEQ(FieldIsPublic, v))
+}
+
 // DeviceKeyEQ applies the EQ predicate on the "device_key" field.
 func DeviceKeyEQ(v string) predicate.Device {
 	return predicate.Device(sql.FieldEQ(FieldDeviceKey, v))
@@ -353,6 +384,29 @@ func UpdatedAtLT(v time.Time) predicate.Device {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Device {
 	return predicate.Device(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasReadings applies the HasEdge predicate on the "readings" edge.
+func HasReadings() predicate.Device {
+	return predicate.Device(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ReadingsTable, ReadingsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReadingsWith applies the HasEdge predicate on the "readings" edge with a given conditions (other predicates).
+func HasReadingsWith(preds ...predicate.DeviceReading) predicate.Device {
+	return predicate.Device(func(s *sql.Selector) {
+		step := newReadingsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

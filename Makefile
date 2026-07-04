@@ -8,7 +8,7 @@ DIST           ?= dist
 BINARY         ?= server
 PLATFORMS      ?= linux/amd64 linux/arm64 darwin/arm64
 
-.PHONY: help dev generate build run swagger clean release migration migrate-up require-database-url db-up db-down db-logs db-shell
+.PHONY: help dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-logs db-shell
 
 ## help: Show available commands
 help:
@@ -53,6 +53,11 @@ clean:
 release:
 	@RELEASE_BRANCH="$(RELEASE_BRANCH)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \
 		bash scripts/release.sh
+
+## seed: Seed mock readings for a device — usage: make seed device=dev_<id> (needs the db container)
+seed: require-database-url
+	@test -n "$(device)" || { echo "usage: make seed device=dev_<id>"; exit 1; }
+	@DEVICE_ID="$(device)" DATABASE_URL="$(DATABASE_URL)" bash scripts/seed_readings.sh
 
 # Fail fast if DATABASE_URL isn't defined (no fallback; see .env.example).
 require-database-url:

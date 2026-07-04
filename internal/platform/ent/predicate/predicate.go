@@ -9,5 +9,5 @@ import (
 // Device is the predicate function for device builders.
 type Device func(*sql.Selector)
 
-// PMSReading is the predicate function for pmsreading builders.
-type PMSReading func(*sql.Selector)
+// DeviceReading is the predicate function for devicereading builders.
+type DeviceReading func(*sql.Selector)
