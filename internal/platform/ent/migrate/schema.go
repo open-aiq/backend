@@ -13,6 +13,7 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "device_id", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString},
+		{Name: "owner_id", Type: field.TypeString, Nullable: true},
 		{Name: "is_outdoor", Type: field.TypeBool, Default: false},
 		{Name: "is_public", Type: field.TypeBool, Default: false},
 		{Name: "device_key", Type: field.TypeString},
@@ -28,7 +29,12 @@ var (
 			{
 				Name:    "device_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{DevicesColumns[6]},
+				Columns: []*schema.Column{DevicesColumns[7]},
+			},
+			{
+				Name:    "device_owner_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{DevicesColumns[3], DevicesColumns[7]},
 			},
 		},
 	}

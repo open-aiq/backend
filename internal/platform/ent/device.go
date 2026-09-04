@@ -23,6 +23,8 @@ type Device struct {
 	DeviceID string `json:"device_id,omitempty"`
 	// Human-readable device name
 	Name string `json:"name,omitempty"`
+	// Clerk user id that owns the device; nullable during legacy backfill
+	OwnerID *string `json:"owner_id,omitempty"`
 	// Whether the device is installed outdoors
 	IsOutdoor bool `json:"is_outdoor,omitempty"`
 	// Whether the owner shares this device's data publicly
@@ -64,7 +66,7 @@ func (*Device) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case device.FieldIsOutdoor, device.FieldIsPublic:
 			values[i] = new(sql.NullBool)
-		case device.FieldDeviceID, device.FieldName, device.FieldDeviceKey:
+		case device.FieldDeviceID, device.FieldName, device.FieldOwnerID, device.FieldDeviceKey:
 			values[i] = new(sql.NullString)
 		case device.FieldCreatedAt, device.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -102,6 +104,13 @@ func (_m *Device) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case device.FieldOwnerID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_id", values[i])
+			} else if value.Valid {
+				_m.OwnerID = new(string)
+				*_m.OwnerID = value.String
 			}
 		case device.FieldIsOutdoor:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -179,6 +188,11 @@ func (_m *Device) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	if v := _m.OwnerID; v != nil {
+		builder.WriteString("owner_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("is_outdoor=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsOutdoor))

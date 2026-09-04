@@ -10,8 +10,15 @@ import (
 	"github.com/google/uuid"
 
 	"go-aiq-backend/internal/platform/ent"
+	entdevice "go-aiq-backend/internal/platform/ent/device"
 	entreading "go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/predicate"
 )
+
+type Scope struct {
+	OwnerID string
+	Public  bool
+}
 
 // BucketPoint is one aggregated time bucket returned by BucketedAverages.
 type BucketPoint struct {
@@ -25,17 +32,18 @@ type BucketPoint struct {
 type Repository interface {
 	// AverageSince averages all metrics over readings created at or after
 	// since, returning the sample count (0 when there is no data).
-	AverageSince(ctx context.Context, since time.Time, deviceID *uuid.UUID) (*AirQuality, int, error)
+	AverageSince(ctx context.Context, since time.Time, deviceID *uuid.UUID, scope Scope) (*AirQuality, int, error)
 	// BucketedAverages groups readings in [start, end) into date_trunc buckets
 	// ("hour", "day" or "month") and averages each metric. Only buckets that
 	// contain data are returned, ordered chronologically.
-	BucketedAverages(ctx context.Context, start, end time.Time, bucket string, deviceID *uuid.UUID) ([]BucketPoint, error)
+	BucketedAverages(ctx context.Context, start, end time.Time, bucket string, deviceID *uuid.UUID, scope Scope) ([]BucketPoint, error)
 	// LatestLocation returns the location of the most recent reading that has
 	// a location fix, or nil if none exists.
-	LatestLocation(ctx context.Context, deviceID *uuid.UUID) (*Location, error)
+	LatestLocation(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*Location, error)
 	// LastSeen returns the timestamp of the most recent reading, or nil if no
 	// readings exist at all.
-	LastSeen(ctx context.Context, deviceID *uuid.UUID) (*time.Time, error)
+	LastSeen(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*time.Time, error)
+	DeviceAccessible(ctx context.Context, deviceID uuid.UUID, scope Scope) (bool, error)
 }
 
 // entRepository is an Ent-backed implementation of Repository over device readings.
@@ -97,18 +105,33 @@ func (r avgRow) metrics() AirQuality {
 }
 
 // scopedQuery starts a reading query, optionally restricted to one device.
-func (r *entRepository) scopedQuery(deviceID *uuid.UUID) *ent.DeviceReadingQuery {
+func (r *entRepository) scopedQuery(deviceID *uuid.UUID, scope Scope) *ent.DeviceReadingQuery {
 	q := r.client.DeviceReading.Query()
 	if deviceID != nil {
 		q = q.Where(entreading.DeviceIDEQ(*deviceID))
 	}
+	if scope.Public {
+		q = q.Where(entreading.HasDeviceWith(entdevice.IsPublic(true)))
+	} else {
+		q = q.Where(entreading.HasDeviceWith(entdevice.OwnerID(scope.OwnerID)))
+	}
 	return q
 }
 
-func (r *entRepository) AverageSince(ctx context.Context, since time.Time, deviceID *uuid.UUID) (*AirQuality, int, error) {
+func (r *entRepository) DeviceAccessible(ctx context.Context, id uuid.UUID, scope Scope) (bool, error) {
+	p := []predicate.Device{entdevice.ID(id)}
+	if scope.Public {
+		p = append(p, entdevice.IsPublic(true))
+	} else {
+		p = append(p, entdevice.OwnerID(scope.OwnerID))
+	}
+	return r.client.Device.Query().Where(p...).Exist(ctx)
+}
+
+func (r *entRepository) AverageSince(ctx context.Context, since time.Time, deviceID *uuid.UUID, scope Scope) (*AirQuality, int, error) {
 	var rows []avgRow
 
-	err := r.scopedQuery(deviceID).
+	err := r.scopedQuery(deviceID, scope).
 		Where(entreading.CreatedAtGTE(since)).
 		Modify(func(s *entsql.Selector) {
 			s.Select(append(avgColumns(), entsql.As("count(*)", "sample_count"))...)
@@ -125,7 +148,7 @@ func (r *entRepository) AverageSince(ctx context.Context, since time.Time, devic
 	return &m, rows[0].SampleCount, nil
 }
 
-func (r *entRepository) BucketedAverages(ctx context.Context, start, end time.Time, bucket string, deviceID *uuid.UUID) ([]BucketPoint, error) {
+func (r *entRepository) BucketedAverages(ctx context.Context, start, end time.Time, bucket string, deviceID *uuid.UUID, scope Scope) ([]BucketPoint, error) {
 	// bucket is one of the fixed date_trunc precisions used by the service,
 	// never user input.
 	switch bucket {
@@ -136,7 +159,7 @@ func (r *entRepository) BucketedAverages(ctx context.Context, start, end time.Ti
 
 	var rows []avgRow
 
-	err := r.scopedQuery(deviceID).
+	err := r.scopedQuery(deviceID, scope).
 		Where(
 			entreading.CreatedAtGTE(start),
 			entreading.CreatedAtLT(end),
@@ -159,8 +182,8 @@ func (r *entRepository) BucketedAverages(ctx context.Context, start, end time.Ti
 	return points, nil
 }
 
-func (r *entRepository) LastSeen(ctx context.Context, deviceID *uuid.UUID) (*time.Time, error) {
-	reading, err := r.scopedQuery(deviceID).
+func (r *entRepository) LastSeen(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*time.Time, error) {
+	reading, err := r.scopedQuery(deviceID, scope).
 		Order(entreading.ByCreatedAt(entsql.OrderDesc())).
 		First(ctx)
 	if err != nil {
@@ -172,8 +195,8 @@ func (r *entRepository) LastSeen(ctx context.Context, deviceID *uuid.UUID) (*tim
 	return &reading.CreatedAt, nil
 }
 
-func (r *entRepository) LatestLocation(ctx context.Context, deviceID *uuid.UUID) (*Location, error) {
-	reading, err := r.scopedQuery(deviceID).
+func (r *entRepository) LatestLocation(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*Location, error) {
+	reading, err := r.scopedQuery(deviceID, scope).
 		Where(entreading.LatNotNil(), entreading.LonNotNil()).
 		Order(entreading.ByCreatedAt(entsql.OrderDesc())).
 		First(ctx)

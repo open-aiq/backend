@@ -19,6 +19,8 @@ const (
 	FieldDeviceID = "device_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldOwnerID holds the string denoting the owner_id field in the database.
+	FieldOwnerID = "owner_id"
 	// FieldIsOutdoor holds the string denoting the is_outdoor field in the database.
 	FieldIsOutdoor = "is_outdoor"
 	// FieldIsPublic holds the string denoting the is_public field in the database.
@@ -47,6 +49,7 @@ var Columns = []string{
 	FieldID,
 	FieldDeviceID,
 	FieldName,
+	FieldOwnerID,
 	FieldIsOutdoor,
 	FieldIsPublic,
 	FieldDeviceKey,
@@ -101,6 +104,11 @@ func ByDeviceID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByOwnerID orders the results by the owner_id field.
+func ByOwnerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerID, opts...).ToFunc()
 }
 
 // ByIsOutdoor orders the results by the is_outdoor field.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go-aiq-backend/internal/platform/middleware"
 )
 
 // Handler holds dependencies for air quality HTTP handlers.
@@ -32,7 +33,7 @@ func NewHandler(service *Service) *Handler {
 //
 // @Router /air-quality/current [get]
 func (h *Handler) GetCurrent(c *gin.Context) {
-	h.respondCurrent(c, nil)
+	h.respondCurrent(c, nil, Scope{OwnerID: middleware.UserID(c)})
 }
 
 // GetDeviceCurrent godoc
@@ -55,14 +56,30 @@ func (h *Handler) GetDeviceCurrent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.respondCurrent(c, &id)
+	h.respondCurrent(c, &id, Scope{OwnerID: middleware.UserID(c)})
+}
+
+// GetPublicDeviceCurrent godoc
+// @Summary Get current readings for a public device
+// @Tags Public
+// @Produce json
+// @Param id path string true "Device id (UUID)"
+// @Success 200 {object} CurrentResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /public/devices/{id}/current [get]
+func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
+	id, ok := deviceIDParam(c)
+	if !ok {
+		return
+	}
+	h.respondCurrent(c, &id, Scope{Public: true})
 }
 
 // respondCurrent renders the current aggregate, optionally scoped to a device.
-func (h *Handler) respondCurrent(c *gin.Context, deviceID *uuid.UUID) {
-	current, err := h.service.GetCurrent(c.Request.Context(), deviceID)
+func (h *Handler) respondCurrent(c *gin.Context, deviceID *uuid.UUID, scope Scope) {
+	current, err := h.service.GetCurrent(c.Request.Context(), deviceID, scope)
 	if err != nil {
-		if errors.Is(err, ErrNoData) {
+		if errors.Is(err, ErrNoData) || errors.Is(err, ErrDeviceNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "No readings received yet"})
 			return
 		}
@@ -102,7 +119,7 @@ func deviceIDParam(c *gin.Context) (uuid.UUID, bool) {
 //
 // @Router /air-quality/historical [get]
 func (h *Handler) GetHistorical(c *gin.Context) {
-	h.respondHistorical(c, nil)
+	h.respondHistorical(c, nil, Scope{OwnerID: middleware.UserID(c)})
 }
 
 // GetDeviceHistorical godoc
@@ -125,11 +142,28 @@ func (h *Handler) GetDeviceHistorical(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.respondHistorical(c, &id)
+	h.respondHistorical(c, &id, Scope{OwnerID: middleware.UserID(c)})
+}
+
+// GetPublicDeviceHistorical godoc
+// @Summary Get historical readings for a public device
+// @Tags Public
+// @Produce json
+// @Param id path string true "Device id (UUID)"
+// @Param timeline query string true "Timeline" Enums(daily, weekly, monthly, yearly)
+// @Success 200 {object} HistoricalResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /public/devices/{id}/historical [get]
+func (h *Handler) GetPublicDeviceHistorical(c *gin.Context) {
+	id, ok := deviceIDParam(c)
+	if !ok {
+		return
+	}
+	h.respondHistorical(c, &id, Scope{Public: true})
 }
 
 // respondHistorical renders the bucketed timeline, optionally scoped to a device.
-func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID) {
+func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID, scope Scope) {
 	var query HistoricalQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -140,8 +174,12 @@ func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID) {
 		return
 	}
 
-	data, err := h.service.GetHistorical(c.Request.Context(), query.Timeline, deviceID)
+	data, err := h.service.GetHistorical(c.Request.Context(), query.Timeline, deviceID, scope)
 	if err != nil {
+		if errors.Is(err, ErrDeviceNotFound) {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get historical data"})
 		return
 	}
@@ -192,7 +230,7 @@ func (h *Handler) GetCustomRange(c *gin.Context) {
 		return
 	}
 
-	data, err := h.service.GetCustomRange(c.Request.Context(), start, end)
+	data, err := h.service.GetCustomRange(c.Request.Context(), start, end, Scope{OwnerID: middleware.UserID(c)})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get custom range data"})
 		return

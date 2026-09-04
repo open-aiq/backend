@@ -34,6 +34,10 @@ func (Device) Fields() []ent.Field {
 		field.String("name").
 			NotEmpty().
 			Comment("Human-readable device name"),
+		field.String("owner_id").
+			Optional().
+			Nillable().
+			Comment("Clerk user id that owns the device; nullable during legacy backfill"),
 		field.Bool("is_outdoor").
 			Default(false).
 			Comment("Whether the device is installed outdoors"),
@@ -67,5 +71,6 @@ func (Device) Indexes() []ent.Index {
 	return []ent.Index{
 		// Listings are ordered by registration time.
 		index.Fields("created_at"),
+		index.Fields("owner_id", "created_at"),
 	}
 }

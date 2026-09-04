@@ -520,6 +520,106 @@
                     }
                 }
             }
+        },
+        "/public/devices": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "List public devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/device.ListPublicDevicesResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/devices/{id}/current": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Get current readings for a public device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.CurrentResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/devices/{id}/historical": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Get historical readings for a public device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly",
+                            "yearly"
+                        ],
+                        "type": "string",
+                        "description": "Timeline",
+                        "name": "timeline",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.HistoricalResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -783,6 +883,40 @@
                     "items": {
                         "$ref": "#/definitions/device.Device"
                     }
+                }
+            }
+        },
+        "device.ListPublicDevicesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/device.PublicDevice"
+                    }
+                }
+            }
+        },
+        "device.PublicDevice": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_outdoor": {
+                    "type": "boolean"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

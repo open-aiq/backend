@@ -44,6 +44,26 @@ func (_u *DeviceUpdate) SetNillableName(v *string) *DeviceUpdate {
 	return _u
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_u *DeviceUpdate) SetOwnerID(v string) *DeviceUpdate {
+	_u.mutation.SetOwnerID(v)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_u *DeviceUpdate) SetNillableOwnerID(v *string) *DeviceUpdate {
+	if v != nil {
+		_u.SetOwnerID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerID clears the value of the "owner_id" field.
+func (_u *DeviceUpdate) ClearOwnerID() *DeviceUpdate {
+	_u.mutation.ClearOwnerID()
+	return _u
+}
+
 // SetIsOutdoor sets the "is_outdoor" field.
 func (_u *DeviceUpdate) SetIsOutdoor(v bool) *DeviceUpdate {
 	_u.mutation.SetIsOutdoor(v)
@@ -205,6 +225,12 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(device.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.OwnerID(); ok {
+		_spec.SetField(device.FieldOwnerID, field.TypeString, value)
+	}
+	if _u.mutation.OwnerIDCleared() {
+		_spec.ClearField(device.FieldOwnerID, field.TypeString)
+	}
 	if value, ok := _u.mutation.IsOutdoor(); ok {
 		_spec.SetField(device.FieldIsOutdoor, field.TypeBool, value)
 	}
@@ -295,6 +321,26 @@ func (_u *DeviceUpdateOne) SetNillableName(v *string) *DeviceUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetOwnerID sets the "owner_id" field.
+func (_u *DeviceUpdateOne) SetOwnerID(v string) *DeviceUpdateOne {
+	_u.mutation.SetOwnerID(v)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_u *DeviceUpdateOne) SetNillableOwnerID(v *string) *DeviceUpdateOne {
+	if v != nil {
+		_u.SetOwnerID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerID clears the value of the "owner_id" field.
+func (_u *DeviceUpdateOne) ClearOwnerID() *DeviceUpdateOne {
+	_u.mutation.ClearOwnerID()
 	return _u
 }
 
@@ -488,6 +534,12 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(device.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OwnerID(); ok {
+		_spec.SetField(device.FieldOwnerID, field.TypeString, value)
+	}
+	if _u.mutation.OwnerIDCleared() {
+		_spec.ClearField(device.FieldOwnerID, field.TypeString)
 	}
 	if value, ok := _u.mutation.IsOutdoor(); ok {
 		_spec.SetField(device.FieldIsOutdoor, field.TypeBool, value)

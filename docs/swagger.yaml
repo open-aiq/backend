@@ -178,6 +178,28 @@ definitions:
           $ref: '#/definitions/device.Device'
         type: array
     type: object
+  device.ListPublicDevicesResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/device.PublicDevice'
+        type: array
+    type: object
+  device.PublicDevice:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      is_outdoor:
+        type: boolean
+      is_public:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
   device.RotateKeyResponse:
     properties:
       data:
@@ -661,4 +683,70 @@ paths:
       summary: Rotate a device's secret key
       tags:
       - Devices
+  /public/devices:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/device.ListPublicDevicesResponse'
+      summary: List public devices
+      tags:
+      - Public
+  /public/devices/{id}/current:
+    get:
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.CurrentResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get current readings for a public device
+      tags:
+      - Public
+  /public/devices/{id}/historical:
+    get:
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Timeline
+        enum:
+        - daily
+        - weekly
+        - monthly
+        - yearly
+        in: query
+        name: timeline
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.HistoricalResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: Get historical readings for a public device
+      tags:
+      - Public
 swagger: "2.0"

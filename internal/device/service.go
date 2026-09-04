@@ -45,7 +45,7 @@ func NewService(repo Repository) *Service {
 // Create registers a new device, generating its public device_id and secret
 // device_key. The returned CreatedDevice contains the key, which is the only
 // time it is ever exposed.
-func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*CreatedDevice, error) {
+func (s *Service) Create(ctx context.Context, ownerID string, req CreateDeviceRequest) (*CreatedDevice, error) {
 	deviceID := deviceIDPrefix + strings.ReplaceAll(uuid.New().String(), "-", "")
 
 	deviceKey, err := generateDeviceKey()
@@ -53,7 +53,7 @@ func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*Created
 		return nil, fmt.Errorf("generate device key: %w", err)
 	}
 
-	created, err := s.repo.Create(ctx, deviceID, req.Name, hashDeviceKey(deviceKey), req.IsOutdoor, req.IsPublic)
+	created, err := s.repo.Create(ctx, ownerID, deviceID, req.Name, hashDeviceKey(deviceKey), req.IsOutdoor, req.IsPublic)
 	if err != nil {
 		return nil, fmt.Errorf("create device: %w", err)
 	}
@@ -76,12 +76,12 @@ var ErrNoUpdateFields = errors.New("no fields to update")
 // Update applies a partial update (name, is_outdoor, is_public) to a device
 // and returns its updated public view. It returns ErrDeviceNotFound if no
 // device with that id exists, and ErrNoUpdateFields if the request is empty.
-func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateDeviceRequest) (*Device, error) {
+func (s *Service) Update(ctx context.Context, ownerID string, id uuid.UUID, req UpdateDeviceRequest) (*Device, error) {
 	if req.Name == nil && req.IsOutdoor == nil && req.IsPublic == nil {
 		return nil, ErrNoUpdateFields
 	}
 
-	updated, err := s.repo.Update(ctx, id, req)
+	updated, err := s.repo.Update(ctx, ownerID, id, req)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, ErrDeviceNotFound
@@ -97,13 +97,13 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateDeviceRequ
 // id, invalidating the old key immediately. As at creation, the returned
 // CreatedDevice is the only time the new key is ever exposed. It returns
 // ErrDeviceNotFound if no device with that id exists.
-func (s *Service) RotateKey(ctx context.Context, id uuid.UUID) (*CreatedDevice, error) {
+func (s *Service) RotateKey(ctx context.Context, ownerID string, id uuid.UUID) (*CreatedDevice, error) {
 	deviceKey, err := generateDeviceKey()
 	if err != nil {
 		return nil, fmt.Errorf("generate device key: %w", err)
 	}
 
-	updated, err := s.repo.UpdateKey(ctx, id, hashDeviceKey(deviceKey))
+	updated, err := s.repo.UpdateKey(ctx, ownerID, id, hashDeviceKey(deviceKey))
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, ErrDeviceNotFound
@@ -142,8 +142,8 @@ func (s *Service) Authenticate(ctx context.Context, deviceID, deviceKey string) 
 
 // Delete removes a device by its internal id. It returns ErrDeviceNotFound if no
 // device with that id exists.
-func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := s.repo.Delete(ctx, id); err != nil {
+func (s *Service) Delete(ctx context.Context, ownerID string, id uuid.UUID) error {
+	if err := s.repo.Delete(ctx, ownerID, id); err != nil {
 		if ent.IsNotFound(err) {
 			return ErrDeviceNotFound
 		}
@@ -153,8 +153,8 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // List returns all registered devices without their secret keys.
-func (s *Service) List(ctx context.Context) ([]Device, error) {
-	entDevices, err := s.repo.List(ctx)
+func (s *Service) List(ctx context.Context, ownerID string) ([]Device, error) {
+	entDevices, err := s.repo.List(ctx, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("list devices: %w", err)
 	}
@@ -164,6 +164,34 @@ func (s *Service) List(ctx context.Context) ([]Device, error) {
 		devices = append(devices, toDevice(d))
 	}
 	return devices, nil
+}
+
+func (s *Service) ListPublic(ctx context.Context) ([]PublicDevice, error) {
+	rows, err := s.repo.ListPublic(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list public devices: %w", err)
+	}
+	out := make([]PublicDevice, 0, len(rows))
+	for _, d := range rows {
+		out = append(out, toPublicDevice(d))
+	}
+	return out, nil
+}
+
+func (s *Service) GetPublic(ctx context.Context, id uuid.UUID) (*PublicDevice, error) {
+	d, err := s.repo.GetPublic(ctx, id)
+	if ent.IsNotFound(err) {
+		return nil, ErrDeviceNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	p := toPublicDevice(d)
+	return &p, nil
+}
+
+func toPublicDevice(d *ent.Device) PublicDevice {
+	return PublicDevice{ID: d.ID, Name: d.Name, IsOutdoor: d.IsOutdoor, IsPublic: d.IsPublic, CreatedAt: d.CreatedAt, UpdatedAt: d.UpdatedAt}
 }
 
 // toDevice maps an Ent entity to the public device view (no secret key).

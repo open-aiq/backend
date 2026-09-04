@@ -14,12 +14,14 @@ import (
 
 // Config holds the application configuration.
 type Config struct {
-	Env                string
-	Host               string
-	Port               string
-	DatabaseURL        string
-	CORSAllowedOrigins []string
-	DB                 DBConfig
+	Env                    string
+	Host                   string
+	Port                   string
+	DatabaseURL            string
+	CORSAllowedOrigins     []string
+	ClerkSecretKey         string
+	ClerkAuthorizedParties []string
+	DB                     DBConfig
 }
 
 // Addr returns the host:port address the HTTP server should bind to.
@@ -53,11 +55,13 @@ func Load() (*Config, error) {
 	var errs []error
 
 	cfg := &Config{
-		Env:                requireString("ENV", &errs),
-		Host:               requirePresent("HOST", &errs), // may be empty = all interfaces (0.0.0.0)
-		Port:               normalizePort(requireString("PORT", &errs)),
-		DatabaseURL:        requireString("DATABASE_URL", &errs),
-		CORSAllowedOrigins: requireStringSlice("CORS_ALLOWED_ORIGINS", &errs),
+		Env:                    requireString("ENV", &errs),
+		Host:                   requirePresent("HOST", &errs), // may be empty = all interfaces (0.0.0.0)
+		Port:                   normalizePort(requireString("PORT", &errs)),
+		DatabaseURL:            requireString("DATABASE_URL", &errs),
+		CORSAllowedOrigins:     requireStringSlice("CORS_ALLOWED_ORIGINS", &errs),
+		ClerkSecretKey:         requireString("CLERK_SECRET_KEY", &errs),
+		ClerkAuthorizedParties: requireStringSlice("CLERK_AUTHORIZED_PARTIES", &errs),
 		DB: DBConfig{
 			MaxOpenConns:    requireInt("DB_MAX_OPEN_CONNS", &errs),
 			MaxIdleConns:    requireInt("DB_MAX_IDLE_CONNS", &errs),

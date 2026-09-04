@@ -19,3 +19,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		devices.GET("/historical", h.GetDeviceHistorical)
 	}
 }
+
+func (h *Handler) RegisterPublicRoutes(rg *gin.RouterGroup) {
+	devices := rg.Group("/public/devices/:id")
+	devices.GET("/current", h.GetPublicDeviceCurrent)
+	devices.GET("/historical", h.GetPublicDeviceHistorical)
+}

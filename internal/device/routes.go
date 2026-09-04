@@ -13,3 +13,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		devices.DELETE("/:id", h.Delete)
 	}
 }
+
+func (h *Handler) RegisterPublicRoutes(rg *gin.RouterGroup) {
+	public := rg.Group("/public/devices")
+	public.GET("", h.ListPublic)
+}

@@ -11,6 +11,7 @@ import (
 
 // ErrNoData is returned when no readings exist at all.
 var ErrNoData = errors.New("no air quality data")
+var ErrDeviceNotFound = errors.New("device not found")
 
 const (
 	// currentWindow is how far back the "current" aggregate looks.
@@ -35,8 +36,17 @@ func NewService(repo Repository) *Service {
 // latest known location. A non-nil deviceID restricts everything to that
 // device; nil aggregates across all devices. It returns ErrNoData only when no
 // readings exist at all (device never reported).
-func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID) (*CurrentAirQuality, error) {
-	lastSeen, err := s.repo.LastSeen(ctx, deviceID)
+func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*CurrentAirQuality, error) {
+	if deviceID != nil {
+		ok, err := s.repo.DeviceAccessible(ctx, *deviceID, scope)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrDeviceNotFound
+		}
+	}
+	lastSeen, err := s.repo.LastSeen(ctx, deviceID, scope)
 	if err != nil {
 		return nil, fmt.Errorf("get current: %w", err)
 	}
@@ -49,7 +59,7 @@ func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID) (*Current
 		status = StatusOffline
 	}
 
-	metrics, count, err := s.repo.AverageSince(ctx, time.Now().Add(-currentWindow), deviceID)
+	metrics, count, err := s.repo.AverageSince(ctx, time.Now().Add(-currentWindow), deviceID, scope)
 	if err != nil {
 		return nil, fmt.Errorf("get current: %w", err)
 	}
@@ -58,9 +68,12 @@ func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID) (*Current
 		metrics = &AirQuality{}
 	}
 
-	location, err := s.repo.LatestLocation(ctx, deviceID)
+	location, err := s.repo.LatestLocation(ctx, deviceID, scope)
 	if err != nil {
 		return nil, fmt.Errorf("get current: %w", err)
+	}
+	if scope.Public {
+		location = nil
 	}
 
 	return &CurrentAirQuality{
@@ -116,14 +129,23 @@ func spec(timeline string, now time.Time) (timelineSpec, error) {
 // hour), weekly (7 days by day), monthly (30 days by day), yearly (12 months by
 // month). A non-nil deviceID restricts the data to that device. Only buckets
 // containing data are returned.
-func (s *Service) GetHistorical(ctx context.Context, timeline string, deviceID *uuid.UUID) ([]DataPoint, error) {
+func (s *Service) GetHistorical(ctx context.Context, timeline string, deviceID *uuid.UUID, scope Scope) ([]DataPoint, error) {
+	if deviceID != nil {
+		ok, err := s.repo.DeviceAccessible(ctx, *deviceID, scope)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrDeviceNotFound
+		}
+	}
 	now := time.Now()
 	ts, err := spec(timeline, now)
 	if err != nil {
 		return nil, err
 	}
 
-	buckets, err := s.repo.BucketedAverages(ctx, ts.start, now, ts.bucket, deviceID)
+	buckets, err := s.repo.BucketedAverages(ctx, ts.start, now, ts.bucket, deviceID, scope)
 	if err != nil {
 		return nil, fmt.Errorf("get historical: %w", err)
 	}
@@ -133,9 +155,9 @@ func (s *Service) GetHistorical(ctx context.Context, timeline string, deviceID *
 
 // GetCustomRange returns daily averages between start and end (inclusive),
 // across all devices.
-func (s *Service) GetCustomRange(ctx context.Context, start, end time.Time) ([]DataPoint, error) {
+func (s *Service) GetCustomRange(ctx context.Context, start, end time.Time, scope Scope) ([]DataPoint, error) {
 	// end is a date; extend it by a day so the whole end date is included.
-	buckets, err := s.repo.BucketedAverages(ctx, start, end.AddDate(0, 0, 1), "day", nil)
+	buckets, err := s.repo.BucketedAverages(ctx, start, end.AddDate(0, 0, 1), "day", nil, scope)
 	if err != nil {
 		return nil, fmt.Errorf("get custom range: %w", err)
 	}

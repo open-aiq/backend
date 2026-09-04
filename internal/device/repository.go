@@ -14,22 +14,24 @@ import (
 type Repository interface {
 	// Create stores a new device. deviceKeyHash is the SHA-256 digest of the
 	// secret key, never the raw key.
-	Create(ctx context.Context, deviceID, name, deviceKeyHash string, isOutdoor, isPublic bool) (*ent.Device, error)
-	List(ctx context.Context) ([]*ent.Device, error)
+	Create(ctx context.Context, ownerID, deviceID, name, deviceKeyHash string, isOutdoor, isPublic bool) (*ent.Device, error)
+	List(ctx context.Context, ownerID string) ([]*ent.Device, error)
+	ListPublic(ctx context.Context) ([]*ent.Device, error)
+	GetPublic(ctx context.Context, id uuid.UUID) (*ent.Device, error)
 	// GetByDeviceID returns the device with the given public device_id. It
 	// returns an ent.NotFoundError (see ent.IsNotFound) if no such device exists.
 	GetByDeviceID(ctx context.Context, deviceID string) (*ent.Device, error)
 	// Update applies the non-nil fields of req to the device with the given
 	// internal id. It returns an ent.NotFoundError (see ent.IsNotFound) if no
 	// such device exists.
-	Update(ctx context.Context, id uuid.UUID, req UpdateDeviceRequest) (*ent.Device, error)
+	Update(ctx context.Context, ownerID string, id uuid.UUID, req UpdateDeviceRequest) (*ent.Device, error)
 	// UpdateKey replaces the stored key digest of the device with the given
 	// internal id. It returns an ent.NotFoundError (see ent.IsNotFound) if no
 	// such device exists.
-	UpdateKey(ctx context.Context, id uuid.UUID, deviceKeyHash string) (*ent.Device, error)
+	UpdateKey(ctx context.Context, ownerID string, id uuid.UUID, deviceKeyHash string) (*ent.Device, error)
 	// Delete removes the device with the given internal id. It returns an
 	// ent.NotFoundError (see ent.IsNotFound) if no such device exists.
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, ownerID string, id uuid.UUID) error
 }
 
 // entRepository is an Ent-backed implementation of Repository.
@@ -42,10 +44,11 @@ func NewEntRepository(client *ent.Client) Repository {
 	return &entRepository{client: client}
 }
 
-func (r *entRepository) Create(ctx context.Context, deviceID, name, deviceKeyHash string, isOutdoor, isPublic bool) (*ent.Device, error) {
+func (r *entRepository) Create(ctx context.Context, ownerID, deviceID, name, deviceKeyHash string, isOutdoor, isPublic bool) (*ent.Device, error) {
 	return r.client.Device.
 		Create().
 		SetDeviceID(deviceID).
+		SetOwnerID(ownerID).
 		SetName(name).
 		SetDeviceKey(deviceKeyHash).
 		SetIsOutdoor(isOutdoor).
@@ -53,12 +56,21 @@ func (r *entRepository) Create(ctx context.Context, deviceID, name, deviceKeyHas
 		Save(ctx)
 }
 
-func (r *entRepository) List(ctx context.Context) ([]*ent.Device, error) {
+func (r *entRepository) List(ctx context.Context, ownerID string) ([]*ent.Device, error) {
 	// Newest devices first.
 	return r.client.Device.
 		Query().
+		Where(entdevice.OwnerID(ownerID)).
 		Order(entdevice.ByCreatedAt(entsql.OrderDesc())).
 		All(ctx)
+}
+
+func (r *entRepository) ListPublic(ctx context.Context) ([]*ent.Device, error) {
+	return r.client.Device.Query().Where(entdevice.IsPublic(true)).Order(entdevice.ByCreatedAt(entsql.OrderDesc())).All(ctx)
+}
+
+func (r *entRepository) GetPublic(ctx context.Context, id uuid.UUID) (*ent.Device, error) {
+	return r.client.Device.Query().Where(entdevice.ID(id), entdevice.IsPublic(true)).Only(ctx)
 }
 
 func (r *entRepository) GetByDeviceID(ctx context.Context, deviceID string) (*ent.Device, error) {
@@ -68,22 +80,30 @@ func (r *entRepository) GetByDeviceID(ctx context.Context, deviceID string) (*en
 		Only(ctx)
 }
 
-func (r *entRepository) Update(ctx context.Context, id uuid.UUID, req UpdateDeviceRequest) (*ent.Device, error) {
-	return r.client.Device.
-		UpdateOneID(id).
+func (r *entRepository) Update(ctx context.Context, ownerID string, id uuid.UUID, req UpdateDeviceRequest) (*ent.Device, error) {
+	d, err := r.client.Device.Query().Where(entdevice.ID(id), entdevice.OwnerID(ownerID)).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return d.Update().
 		SetNillableName(req.Name).
 		SetNillableIsOutdoor(req.IsOutdoor).
 		SetNillableIsPublic(req.IsPublic).
 		Save(ctx)
 }
 
-func (r *entRepository) UpdateKey(ctx context.Context, id uuid.UUID, deviceKeyHash string) (*ent.Device, error) {
-	return r.client.Device.
-		UpdateOneID(id).
-		SetDeviceKey(deviceKeyHash).
-		Save(ctx)
+func (r *entRepository) UpdateKey(ctx context.Context, ownerID string, id uuid.UUID, deviceKeyHash string) (*ent.Device, error) {
+	d, err := r.client.Device.Query().Where(entdevice.ID(id), entdevice.OwnerID(ownerID)).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return d.Update().SetDeviceKey(deviceKeyHash).Save(ctx)
 }
 
-func (r *entRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.client.Device.DeleteOneID(id).Exec(ctx)
+func (r *entRepository) Delete(ctx context.Context, ownerID string, id uuid.UUID) error {
+	n, err := r.client.Device.Delete().Where(entdevice.ID(id), entdevice.OwnerID(ownerID)).Exec(ctx)
+	if err == nil && n == 0 {
+		return &ent.NotFoundError{}
+	}
+	return err
 }

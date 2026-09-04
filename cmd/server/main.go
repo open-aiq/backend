@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -37,6 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+	clerk.SetKey(cfg.ClerkSecretKey)
 
 	// Connect to Postgres. Schema changes are applied out-of-band via versioned
 	// migrations (cmd/migrate / `make migrate-up`), never on startup.
@@ -77,8 +79,12 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := r.Group("/api/v1")
-	handler.RegisterRoutes(api)
-	deviceHandler.RegisterRoutes(api)
+	authenticated := api.Group("")
+	authenticated.Use(middleware.ClerkAuth(cfg.ClerkSecretKey, cfg.ClerkAuthorizedParties))
+	handler.RegisterRoutes(authenticated)
+	deviceHandler.RegisterRoutes(authenticated)
+	deviceHandler.RegisterPublicRoutes(api)
+	handler.RegisterPublicRoutes(api)
 	readingHandler.RegisterRoutes(api)
 
 	srv := &http.Server{

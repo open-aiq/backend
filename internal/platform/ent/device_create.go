@@ -34,6 +34,20 @@ func (_c *DeviceCreate) SetName(v string) *DeviceCreate {
 	return _c
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_c *DeviceCreate) SetOwnerID(v string) *DeviceCreate {
+	_c.mutation.SetOwnerID(v)
+	return _c
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_c *DeviceCreate) SetNillableOwnerID(v *string) *DeviceCreate {
+	if v != nil {
+		_c.SetOwnerID(*v)
+	}
+	return _c
+}
+
 // SetIsOutdoor sets the "is_outdoor" field.
 func (_c *DeviceCreate) SetIsOutdoor(v bool) *DeviceCreate {
 	_c.mutation.SetIsOutdoor(v)
@@ -262,6 +276,10 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(device.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.OwnerID(); ok {
+		_spec.SetField(device.FieldOwnerID, field.TypeString, value)
+		_node.OwnerID = &value
 	}
 	if value, ok := _c.mutation.IsOutdoor(); ok {
 		_spec.SetField(device.FieldIsOutdoor, field.TypeBool, value)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go-aiq-backend/internal/platform/middleware"
 )
 
 // Handler holds dependencies for device HTTP handlers.
@@ -44,7 +45,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	created, err := h.service.Create(c.Request.Context(), req)
+	created, err := h.service.Create(c.Request.Context(), middleware.UserID(c), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create device"})
 		return
@@ -65,13 +66,28 @@ func (h *Handler) Create(c *gin.Context) {
 //
 // @Router /devices [get]
 func (h *Handler) List(c *gin.Context) {
-	devices, err := h.service.List(c.Request.Context())
+	devices, err := h.service.List(c.Request.Context(), middleware.UserID(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list devices"})
 		return
 	}
 
 	c.IndentedJSON(http.StatusOK, ListDevicesResponse{Data: devices})
+}
+
+// ListPublic godoc
+// @Summary List public devices
+// @Tags Public
+// @Produce json
+// @Success 200 {object} ListPublicDevicesResponse
+// @Router /public/devices [get]
+func (h *Handler) ListPublic(c *gin.Context) {
+	devices, err := h.service.ListPublic(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list public devices"})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, ListPublicDevicesResponse{Data: devices})
 }
 
 // Update godoc
@@ -110,7 +126,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.service.Update(c.Request.Context(), id, req)
+	updated, err := h.service.Update(c.Request.Context(), middleware.UserID(c), id, req)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNoUpdateFields):
@@ -154,7 +170,7 @@ func (h *Handler) RotateKey(c *gin.Context) {
 		return
 	}
 
-	rotated, err := h.service.RotateKey(c.Request.Context(), id)
+	rotated, err := h.service.RotateKey(c.Request.Context(), middleware.UserID(c), id)
 	if err != nil {
 		if errors.Is(err, ErrDeviceNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
@@ -192,7 +208,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), middleware.UserID(c), id); err != nil {
 		if errors.Is(err, ErrDeviceNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
 			return

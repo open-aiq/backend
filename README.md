@@ -46,6 +46,21 @@ no manual migration step is needed in development. After editing a schema in
 `internal/platform/ent/schema/`, regenerate the Ent client with `make generate`
 (also run automatically by `make build`).
 
+### Existing device ownership backfill
+
+The initial Clerk ownership migration leaves `devices.owner_id` nullable so no
+legacy device is assigned implicitly. Backfill each device with an explicit Clerk
+user ID, for example:
+
+```sql
+UPDATE devices SET owner_id = 'user_...' WHERE device_id = 'dev_...';
+SELECT device_id, name FROM devices WHERE owner_id IS NULL;
+```
+
+Only after the second query returns no rows should a separate migration make
+`owner_id` non-null. Unowned devices are hidden from private APIs; public legacy
+devices remain available through `/api/v1/public/devices`.
+
 ## Architecture
 
 The backend follows a hybrid domain-driven + hexagonal design.

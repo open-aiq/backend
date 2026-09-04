@@ -38,6 +38,7 @@ type DeviceMutation struct {
 	id              *uuid.UUID
 	device_id       *string
 	name            *string
+	owner_id        *string
 	is_outdoor      *bool
 	is_public       *bool
 	device_key      *string
@@ -226,6 +227,55 @@ func (m *DeviceMutation) OldName(ctx context.Context) (v string, err error) {
 // ResetName resets all changes to the "name" field.
 func (m *DeviceMutation) ResetName() {
 	m.name = nil
+}
+
+// SetOwnerID sets the "owner_id" field.
+func (m *DeviceMutation) SetOwnerID(s string) {
+	m.owner_id = &s
+}
+
+// OwnerID returns the value of the "owner_id" field in the mutation.
+func (m *DeviceMutation) OwnerID() (r string, exists bool) {
+	v := m.owner_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerID returns the old "owner_id" field's value of the Device entity.
+// If the Device object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceMutation) OldOwnerID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerID: %w", err)
+	}
+	return oldValue.OwnerID, nil
+}
+
+// ClearOwnerID clears the value of the "owner_id" field.
+func (m *DeviceMutation) ClearOwnerID() {
+	m.owner_id = nil
+	m.clearedFields[device.FieldOwnerID] = struct{}{}
+}
+
+// OwnerIDCleared returns if the "owner_id" field was cleared in this mutation.
+func (m *DeviceMutation) OwnerIDCleared() bool {
+	_, ok := m.clearedFields[device.FieldOwnerID]
+	return ok
+}
+
+// ResetOwnerID resets all changes to the "owner_id" field.
+func (m *DeviceMutation) ResetOwnerID() {
+	m.owner_id = nil
+	delete(m.clearedFields, device.FieldOwnerID)
 }
 
 // SetIsOutdoor sets the "is_outdoor" field.
@@ -496,12 +546,15 @@ func (m *DeviceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeviceMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.device_id != nil {
 		fields = append(fields, device.FieldDeviceID)
 	}
 	if m.name != nil {
 		fields = append(fields, device.FieldName)
+	}
+	if m.owner_id != nil {
+		fields = append(fields, device.FieldOwnerID)
 	}
 	if m.is_outdoor != nil {
 		fields = append(fields, device.FieldIsOutdoor)
@@ -530,6 +583,8 @@ func (m *DeviceMutation) Field(name string) (ent.Value, bool) {
 		return m.DeviceID()
 	case device.FieldName:
 		return m.Name()
+	case device.FieldOwnerID:
+		return m.OwnerID()
 	case device.FieldIsOutdoor:
 		return m.IsOutdoor()
 	case device.FieldIsPublic:
@@ -553,6 +608,8 @@ func (m *DeviceMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldDeviceID(ctx)
 	case device.FieldName:
 		return m.OldName(ctx)
+	case device.FieldOwnerID:
+		return m.OldOwnerID(ctx)
 	case device.FieldIsOutdoor:
 		return m.OldIsOutdoor(ctx)
 	case device.FieldIsPublic:
@@ -585,6 +642,13 @@ func (m *DeviceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case device.FieldOwnerID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerID(v)
 		return nil
 	case device.FieldIsOutdoor:
 		v, ok := value.(bool)
@@ -650,7 +714,11 @@ func (m *DeviceMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *DeviceMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(device.FieldOwnerID) {
+		fields = append(fields, device.FieldOwnerID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -663,6 +731,11 @@ func (m *DeviceMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *DeviceMutation) ClearField(name string) error {
+	switch name {
+	case device.FieldOwnerID:
+		m.ClearOwnerID()
+		return nil
+	}
 	return fmt.Errorf("unknown Device nullable field %s", name)
 }
 
@@ -675,6 +748,9 @@ func (m *DeviceMutation) ResetField(name string) error {
 		return nil
 	case device.FieldName:
 		m.ResetName()
+		return nil
+	case device.FieldOwnerID:
+		m.ResetOwnerID()
 		return nil
 	case device.FieldIsOutdoor:
 		m.ResetIsOutdoor()

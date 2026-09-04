@@ -35,6 +35,16 @@ type Device struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// PublicDevice deliberately excludes owner_id and the physical device_id.
+type PublicDevice struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	IsOutdoor bool      `json:"is_outdoor"`
+	IsPublic  bool      `json:"is_public"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // CreatedDevice is returned only when a device is created or its key is
 // rotated. It includes the secret device_key, which is shown exactly once and
 // never listed again.
@@ -57,6 +67,9 @@ type CreateDeviceResponse struct {
 
 type ListDevicesResponse struct {
 	Data []Device `json:"data"`
+}
+type ListPublicDevicesResponse struct {
+	Data []PublicDevice `json:"data"`
 }
 
 type RotateKeyResponse struct {
