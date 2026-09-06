@@ -83,6 +83,7 @@ func (h *Handler) respondCurrent(c *gin.Context, deviceID *uuid.UUID, scope Scop
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "No readings received yet"})
 			return
 		}
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get current data"})
 		return
 	}
@@ -180,6 +181,7 @@ func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID, scope S
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
 			return
 		}
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get historical data"})
 		return
 	}
@@ -232,6 +234,7 @@ func (h *Handler) GetCustomRange(c *gin.Context) {
 
 	data, err := h.service.GetCustomRange(c.Request.Context(), start, end, Scope{OwnerID: middleware.UserID(c)})
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get custom range data"})
 		return
 	}

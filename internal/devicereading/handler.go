@@ -55,6 +55,7 @@ func (h *Handler) deviceAuth(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid device credentials"})
 			return
 		}
+		_ = c.Error(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to authenticate device"})
 		return
 	}
@@ -95,6 +96,7 @@ func (h *Handler) Upload(c *gin.Context) {
 
 	created, err := h.service.Ingest(c.Request.Context(), deviceID, &req)
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to store reading"})
 		return
 	}

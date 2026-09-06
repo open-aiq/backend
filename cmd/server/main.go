@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,9 +34,13 @@ var version = "dev"
 // @host localhost:8080
 // @BasePath /api/v1
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		logger.Error("failed to load configuration", "error", err)
+		os.Exit(1)
 	}
 	clerk.SetKey(cfg.ClerkSecretKey)
 
@@ -44,7 +48,8 @@ func main() {
 	// migrations (cmd/migrate / `make migrate-up`), never on startup.
 	client, err := database.New(cfg)
 	if err != nil {
-		log.Fatalf("database: %v", err)
+		logger.Error("failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer client.Close()
 
@@ -73,7 +78,8 @@ func main() {
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	r := gin.Default()
+	r := gin.New()
+	r.Use(middleware.RequestLogger(logger), gin.Recovery())
 	r.Use(middleware.CORS(cfg.CORSAllowedOrigins))
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -94,9 +100,10 @@ func main() {
 
 	// Run the server in a goroutine so we can listen for shutdown signals.
 	go func() {
-		log.Printf("listening on %s (env=%s, version=%s)", cfg.Addr(), cfg.Env, version)
+		logger.Info("server listening", "address", cfg.Addr(), "environment", cfg.Env, "version", version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("server: %v", err)
+			logger.Error("server stopped unexpectedly", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -104,12 +111,13 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("shutting down...")
+	logger.Info("shutting down")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("forced shutdown: %v", err)
+		logger.Error("forced shutdown", "error", err)
+		os.Exit(1)
 	}
-	log.Println("server stopped")
+	logger.Info("server stopped")
 }

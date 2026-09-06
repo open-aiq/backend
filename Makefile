@@ -1,3 +1,9 @@
+ENGINE := podman
+CONTAINER := openaiq-postgres
+CONTAINER_VOLUME := openaiq-pgdata
+DB_VERION := 18
+BACKUP_DIR ?= backups
+
 # Load .env so DATABASE_URL is available to the db-* targets.
 # DATABASE_URL has no fallback — it must be defined in .env (see .env.example).
 -include .env
@@ -8,7 +14,7 @@ DIST           ?= dist
 BINARY         ?= server
 PLATFORMS      ?= linux/amd64 linux/arm64 darwin/arm64
 
-.PHONY: help dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-logs db-shell
+.PHONY: help dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-backup db-clean db-logs db-shell
 
 ## help: Show available commands
 help:
@@ -80,29 +86,50 @@ db-up: require-database-url
 	[ "$$port" = "$${hostport%%:*}" ] && port=5432; \
 	dbq="$${hostpart#*/}"; \
 	db="$${dbq%%\?*}"; \
-	echo "Starting openaiq-postgres (db=$$db, port=$$port)..."; \
-	docker run -d \
-	  --name openaiq-postgres \
+	echo "Starting $(CONTAINER) (db=$$db, port=$$port)..."; \
+	$(ENGINE) run -d \
+	  --name $(CONTAINER) \
 	  --restart unless-stopped \
 	  -e POSTGRES_USER="$$user" \
 	  -e POSTGRES_PASSWORD="$$pass" \
 	  -e POSTGRES_DB="$$db" \
 	  -e PGDATA=/var/lib/postgresql/data/pgdata \
 	  -p 127.0.0.1:$$port:5432 \
-	  -v openaiq-pgdata:/var/lib/postgresql/data \
+	  -v $(CONTAINER_VOLUME):/var/lib/postgresql/data \
 	  --shm-size=256m \
 	  --health-cmd="pg_isready -U $$user -d $$db" \
 	  --health-interval=10s --health-timeout=5s --health-retries=5 \
-	  postgres:16
+	  postgres:$(DB_VERION)
 
 ## db-down: Stop and remove the PostgreSQL container (data volume is kept)
 db-down:
-	docker rm -f openaiq-postgres
+	$(ENGINE) rm -f $(CONTAINER)
+
+## db-backup: Back up the container database to backups/ in PostgreSQL custom format
+db-backup:
+	@set -eu; \
+		mkdir -p "$(BACKUP_DIR)"; \
+		backup="$(BACKUP_DIR)/openaiq-$$(date -u +%Y%m%dT%H%M%SZ).dump"; \
+		temporary="$$backup.tmp"; \
+		trap 'rm -f "$$temporary"' EXIT; \
+		test ! -e "$$backup"; \
+		$(ENGINE) exec $(CONTAINER) sh -c 'exec pg_dump --format=custom --no-owner --no-privileges --username="$$POSTGRES_USER" --dbname="$$POSTGRES_DB"' > "$$temporary"; \
+		mv "$$temporary" "$$backup"; \
+		trap - EXIT; \
+		echo "Database backup created: $$backup"
+
+## db-clean: Back up the database, recreate its container and volume, then start fresh
+db-clean: require-database-url
+	@$(MAKE) db-backup
+	@$(MAKE) db-down
+	@$(ENGINE) volume rm $(CONTAINER_VOLUME)
+	@$(MAKE) db-up
+
 
 ## db-logs: Tail the PostgreSQL container logs
 db-logs:
-	docker logs -f openaiq-postgres
+	$(ENGINE) logs -f $(CONTAINER)
 
 ## db-shell: Open a psql shell in the PostgreSQL container
 db-shell: require-database-url
-	@docker exec -it openaiq-postgres psql -U "$$(url='$(DATABASE_URL)'; creds="$${url#*://}"; echo "$${creds%%:*}")" -d "$$(url='$(DATABASE_URL)'; rest="$${url##*/}"; echo "$${rest%%\?*}")"
+	@$(ENGINE) exec -it $(CONTAINER) psql -d "$(DATABASE_URL)"

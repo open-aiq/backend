@@ -47,6 +47,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	created, err := h.service.Create(c.Request.Context(), middleware.UserID(c), req)
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create device"})
 		return
 	}
@@ -68,6 +69,7 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) List(c *gin.Context) {
 	devices, err := h.service.List(c.Request.Context(), middleware.UserID(c))
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list devices"})
 		return
 	}
@@ -84,6 +86,7 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) ListPublic(c *gin.Context) {
 	devices, err := h.service.ListPublic(c.Request.Context())
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list public devices"})
 		return
 	}
@@ -137,6 +140,7 @@ func (h *Handler) Update(c *gin.Context) {
 		case errors.Is(err, ErrDeviceNotFound):
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
 		default:
+			_ = c.Error(err)
 			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update device"})
 		}
 		return
@@ -176,6 +180,7 @@ func (h *Handler) RotateKey(c *gin.Context) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
 			return
 		}
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to rotate device key"})
 		return
 	}
@@ -213,6 +218,7 @@ func (h *Handler) Delete(c *gin.Context) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
 			return
 		}
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete device"})
 		return
 	}
