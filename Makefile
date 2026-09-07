@@ -30,40 +30,34 @@ dev:
 swagger:
 	swag init -g cmd/server/main.go -o docs
 
-## generate: Regenerate the Ent client after editing a schema (internal/platform/ent/schema/)
-generate:
-	go generate ./internal/platform/ent
-
-## migration: Generate a versioned migration from schema changes — usage: make migration name=<description> (needs Docker)
-migration:
-	@test -n "$(name)" || { echo "usage: make migration name=<description>"; exit 1; }
-	atlas migrate diff "$(name)" --env defaultConfig
-
-## migrate-up: Apply all pending migrations to DATABASE_URL
-migrate-up: require-database-url
-	atlas migrate apply --env defaultConfig --url "$(DATABASE_URL)"
 
 ## build: Regenerate code, generate swagger, and build the binary
 build: generate swagger
 	go build -o bin/server ./cmd/server/
 
-## run: Build and run the server
-run: build
+## build-run: Build and run the server
+build-run: build
 	./bin/server
 
-## clean: Remove build artifacts
-clean:
+## build-clean: Remove build artifacts
+build-clean:
 	rm -rf bin/ tmp/ $(DIST)/
 
-## release: Bump version (prompts major/minor/patch), build artifacts, tag, and publish a GitHub release
-release:
-	@RELEASE_BRANCH="$(RELEASE_BRANCH)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \
-		bash scripts/release.sh
+## orm-gen: Regenerate the Ent client after editing a schema (internal/platform/ent/schema/)
+orm-gen:
+	go generate ./internal/platform/ent
 
-## seed: Seed mock readings and map-enable a device — usage: make seed device=dev_<id> [map=false]
-seed: require-database-url
-	@test -n "$(device)" || { echo "usage: make seed device=dev_<id>"; exit 1; }
-	@DEVICE_ID="$(device)" DATABASE_URL="$(DATABASE_URL)" ENGINE="$(ENGINE)" CONTAINER="$(CONTAINER)" MAP_VISIBLE="$(if $(map),$(map),true)" bash scripts/seed_readings.sh
+## migration-gen: Generate a versioned migration from schema changes — usage: make migration name=<description> (needs Docker)
+migration-gen:
+	@test -n "$(name)" || { echo "usage: make migration name=<description>"; exit 1; }
+	atlas migrate diff "$(name)" --env defaultConfig
+
+## migration-apply: Apply all pending migrations to DATABASE_URL
+migration-apply: require-database-url
+	atlas migrate apply --env defaultConfig --url "$(DATABASE_URL)"
+
+
+
 
 # Fail fast if DATABASE_URL isn't defined (no fallback; see .env.example).
 require-database-url:
@@ -71,6 +65,11 @@ require-database-url:
 	  echo "DATABASE_URL is not set. Define it in .env (see .env.example)."; \
 	  exit 1; \
 	fi
+
+## seed: Seed mock readings and map-enable a device — usage: make seed device=dev_<id> [map=false]
+db-seed: require-database-url
+	@test -n "$(device)" || { echo "usage: make seed device=dev_<id>"; exit 1; }
+	@DEVICE_ID="$(device)" DATABASE_URL="$(DATABASE_URL)" ENGINE="$(ENGINE)" CONTAINER="$(CONTAINER)" MAP_VISIBLE="$(if $(map),$(map),true)" bash scripts/seed_readings.sh
 
 ## db-up: Start the PostgreSQL container (creds derived from DATABASE_URL)
 db-up: require-database-url
@@ -175,3 +174,10 @@ db-logs:
 ## db-shell: Open a psql shell in the PostgreSQL container
 db-shell: require-database-url
 	@$(ENGINE) exec -it $(CONTAINER) psql -d "$(DATABASE_URL)"
+
+
+##.    
+## release: Bump version (prompts major/minor/patch), build artifacts, tag, and publish a GitHub release
+release:
+	@RELEASE_BRANCH="$(RELEASE_BRANCH)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \
+		bash scripts/release.sh
