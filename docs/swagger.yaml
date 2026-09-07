@@ -98,8 +98,41 @@ definitions:
       timestamp:
         type: string
     type: object
+  airquality.PublicMapDevice:
+    properties:
+      aqi:
+        type: integer
+      id:
+        type: string
+      is_outdoor:
+        type: boolean
+      lat:
+        type: number
+      lon:
+        type: number
+      measured_at:
+        type: string
+      name:
+        type: string
+      pm2_5:
+        type: number
+      status:
+        type: string
+      temperature:
+        type: number
+    type: object
+  airquality.PublicMapResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/airquality.PublicMapDevice'
+        type: array
+    type: object
   device.CreateDeviceRequest:
     properties:
+      is_location_public:
+        example: false
+        type: boolean
       is_outdoor:
         example: false
         type: boolean
@@ -129,6 +162,9 @@ definitions:
         type: string
       id:
         type: string
+      is_location_public:
+        example: false
+        type: boolean
       is_outdoor:
         example: false
         type: boolean
@@ -150,6 +186,9 @@ definitions:
         type: string
       id:
         type: string
+      is_location_public:
+        example: false
+        type: boolean
       is_outdoor:
         example: false
         type: boolean
@@ -200,6 +239,11 @@ definitions:
       updated_at:
         type: string
     type: object
+  device.PublicDeviceResponse:
+    properties:
+      data:
+        $ref: '#/definitions/device.PublicDevice'
+    type: object
   device.RotateKeyResponse:
     properties:
       data:
@@ -207,6 +251,8 @@ definitions:
     type: object
   device.UpdateDeviceRequest:
     properties:
+      is_location_public:
+        type: boolean
       is_outdoor:
         type: boolean
       is_public:
@@ -546,8 +592,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: 'Partially updates a device: only the fields present in the body
-        (name, is_outdoor, is_public) are changed.'
+      description: Partially updates a device. Exact location can only be shared by
+        a public device, and making a device private revokes location sharing.
       parameters:
       - description: Device id (UUID)
         in: path
@@ -695,6 +741,32 @@ paths:
       summary: List public devices
       tags:
       - Public
+  /public/devices/{id}:
+    get:
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/device.PublicDeviceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/device.ErrorResponse'
+      summary: Get a public device
+      tags:
+      - Public
   /public/devices/{id}/current:
     get:
       parameters:
@@ -747,6 +819,24 @@ paths:
           schema:
             $ref: '#/definitions/airquality.ErrorResponse'
       summary: Get historical readings for a public device
+      tags:
+      - Public
+  /public/map/devices:
+    get:
+      description: Returns the latest complete sample for devices whose owners explicitly
+        publish both readings and exact location.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/airquality.PublicMapResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/airquality.ErrorResponse'
+      summary: List public devices for the community map
       tags:
       - Public
 swagger: "2.0"

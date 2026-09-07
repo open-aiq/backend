@@ -76,6 +76,20 @@ func (_c *DeviceCreate) SetNillableIsPublic(v *bool) *DeviceCreate {
 	return _c
 }
 
+// SetIsLocationPublic sets the "is_location_public" field.
+func (_c *DeviceCreate) SetIsLocationPublic(v bool) *DeviceCreate {
+	_c.mutation.SetIsLocationPublic(v)
+	return _c
+}
+
+// SetNillableIsLocationPublic sets the "is_location_public" field if the given value is not nil.
+func (_c *DeviceCreate) SetNillableIsLocationPublic(v *bool) *DeviceCreate {
+	if v != nil {
+		_c.SetIsLocationPublic(*v)
+	}
+	return _c
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (_c *DeviceCreate) SetDeviceKey(v string) *DeviceCreate {
 	_c.mutation.SetDeviceKey(v)
@@ -182,6 +196,10 @@ func (_c *DeviceCreate) defaults() {
 		v := device.DefaultIsPublic
 		_c.mutation.SetIsPublic(v)
 	}
+	if _, ok := _c.mutation.IsLocationPublic(); !ok {
+		v := device.DefaultIsLocationPublic
+		_c.mutation.SetIsLocationPublic(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := device.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -219,6 +237,9 @@ func (_c *DeviceCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsPublic(); !ok {
 		return &ValidationError{Name: "is_public", err: errors.New(`ent: missing required field "Device.is_public"`)}
+	}
+	if _, ok := _c.mutation.IsLocationPublic(); !ok {
+		return &ValidationError{Name: "is_location_public", err: errors.New(`ent: missing required field "Device.is_location_public"`)}
 	}
 	if _, ok := _c.mutation.DeviceKey(); !ok {
 		return &ValidationError{Name: "device_key", err: errors.New(`ent: missing required field "Device.device_key"`)}
@@ -288,6 +309,10 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsPublic(); ok {
 		_spec.SetField(device.FieldIsPublic, field.TypeBool, value)
 		_node.IsPublic = value
+	}
+	if value, ok := _c.mutation.IsLocationPublic(); ok {
+		_spec.SetField(device.FieldIsLocationPublic, field.TypeBool, value)
+		_node.IsLocationPublic = value
 	}
 	if value, ok := _c.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)

@@ -17,4 +17,5 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) RegisterPublicRoutes(rg *gin.RouterGroup) {
 	public := rg.Group("/public/devices")
 	public.GET("", h.ListPublic)
+	public.GET("/:id", h.GetPublic)
 }

@@ -33,24 +33,25 @@ const (
 // DeviceMutation represents an operation that mutates the Device nodes in the graph.
 type DeviceMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *uuid.UUID
-	device_id       *string
-	name            *string
-	owner_id        *string
-	is_outdoor      *bool
-	is_public       *bool
-	device_key      *string
-	created_at      *time.Time
-	updated_at      *time.Time
-	clearedFields   map[string]struct{}
-	readings        map[int]struct{}
-	removedreadings map[int]struct{}
-	clearedreadings bool
-	done            bool
-	oldValue        func(context.Context) (*Device, error)
-	predicates      []predicate.Device
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	device_id          *string
+	name               *string
+	owner_id           *string
+	is_outdoor         *bool
+	is_public          *bool
+	is_location_public *bool
+	device_key         *string
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	readings           map[int]struct{}
+	removedreadings    map[int]struct{}
+	clearedreadings    bool
+	done               bool
+	oldValue           func(context.Context) (*Device, error)
+	predicates         []predicate.Device
 }
 
 var _ ent.Mutation = (*DeviceMutation)(nil)
@@ -350,6 +351,42 @@ func (m *DeviceMutation) ResetIsPublic() {
 	m.is_public = nil
 }
 
+// SetIsLocationPublic sets the "is_location_public" field.
+func (m *DeviceMutation) SetIsLocationPublic(b bool) {
+	m.is_location_public = &b
+}
+
+// IsLocationPublic returns the value of the "is_location_public" field in the mutation.
+func (m *DeviceMutation) IsLocationPublic() (r bool, exists bool) {
+	v := m.is_location_public
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsLocationPublic returns the old "is_location_public" field's value of the Device entity.
+// If the Device object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceMutation) OldIsLocationPublic(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsLocationPublic is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsLocationPublic requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsLocationPublic: %w", err)
+	}
+	return oldValue.IsLocationPublic, nil
+}
+
+// ResetIsLocationPublic resets all changes to the "is_location_public" field.
+func (m *DeviceMutation) ResetIsLocationPublic() {
+	m.is_location_public = nil
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (m *DeviceMutation) SetDeviceKey(s string) {
 	m.device_key = &s
@@ -546,7 +583,7 @@ func (m *DeviceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeviceMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.device_id != nil {
 		fields = append(fields, device.FieldDeviceID)
 	}
@@ -561,6 +598,9 @@ func (m *DeviceMutation) Fields() []string {
 	}
 	if m.is_public != nil {
 		fields = append(fields, device.FieldIsPublic)
+	}
+	if m.is_location_public != nil {
+		fields = append(fields, device.FieldIsLocationPublic)
 	}
 	if m.device_key != nil {
 		fields = append(fields, device.FieldDeviceKey)
@@ -589,6 +629,8 @@ func (m *DeviceMutation) Field(name string) (ent.Value, bool) {
 		return m.IsOutdoor()
 	case device.FieldIsPublic:
 		return m.IsPublic()
+	case device.FieldIsLocationPublic:
+		return m.IsLocationPublic()
 	case device.FieldDeviceKey:
 		return m.DeviceKey()
 	case device.FieldCreatedAt:
@@ -614,6 +656,8 @@ func (m *DeviceMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldIsOutdoor(ctx)
 	case device.FieldIsPublic:
 		return m.OldIsPublic(ctx)
+	case device.FieldIsLocationPublic:
+		return m.OldIsLocationPublic(ctx)
 	case device.FieldDeviceKey:
 		return m.OldDeviceKey(ctx)
 	case device.FieldCreatedAt:
@@ -663,6 +707,13 @@ func (m *DeviceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsPublic(v)
+		return nil
+	case device.FieldIsLocationPublic:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsLocationPublic(v)
 		return nil
 	case device.FieldDeviceKey:
 		v, ok := value.(string)
@@ -757,6 +808,9 @@ func (m *DeviceMutation) ResetField(name string) error {
 		return nil
 	case device.FieldIsPublic:
 		m.ResetIsPublic()
+		return nil
+	case device.FieldIsLocationPublic:
+		m.ResetIsLocationPublic()
 		return nil
 	case device.FieldDeviceKey:
 		m.ResetDeviceKey()

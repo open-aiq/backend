@@ -14,7 +14,7 @@ DIST           ?= dist
 BINARY         ?= server
 PLATFORMS      ?= linux/amd64 linux/arm64 darwin/arm64
 
-.PHONY: help dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-backup db-clean db-logs db-shell
+.PHONY: help dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-backup db-backups-clean db-clean db-logs db-shell
 
 ## help: Show available commands
 help:
@@ -60,10 +60,10 @@ release:
 	@RELEASE_BRANCH="$(RELEASE_BRANCH)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \
 		bash scripts/release.sh
 
-## seed: Seed mock readings for a device — usage: make seed device=dev_<id> (needs the db container)
+## seed: Seed mock readings and map-enable a device — usage: make seed device=dev_<id> [map=false]
 seed: require-database-url
 	@test -n "$(device)" || { echo "usage: make seed device=dev_<id>"; exit 1; }
-	@DEVICE_ID="$(device)" DATABASE_URL="$(DATABASE_URL)" bash scripts/seed_readings.sh
+	@DEVICE_ID="$(device)" DATABASE_URL="$(DATABASE_URL)" ENGINE="$(ENGINE)" CONTAINER="$(CONTAINER)" MAP_VISIBLE="$(if $(map),$(map),true)" bash scripts/seed_readings.sh
 
 # Fail fast if DATABASE_URL isn't defined (no fallback; see .env.example).
 require-database-url:
@@ -99,7 +99,26 @@ db-up: require-database-url
 	  --shm-size=256m \
 	  --health-cmd="pg_isready -U $$user -d $$db" \
 	  --health-interval=10s --health-timeout=5s --health-retries=5 \
-	  postgres:$(DB_VERION)
+	  postgres:$(DB_VERION); \
+	echo "Waiting for $(CONTAINER) to become healthy..."; \
+	attempt=0; \
+	while :; do \
+	  health="$$( $(ENGINE) inspect --format '{{.State.Health.Status}}' $(CONTAINER) 2>/dev/null || true )"; \
+	  [ "$$health" = "healthy" ] && break; \
+	  if [ "$$health" = "unhealthy" ]; then \
+	    echo "$(CONTAINER) failed its health check."; \
+	    $(ENGINE) logs $(CONTAINER); \
+	    exit 1; \
+	  fi; \
+	  attempt=$$((attempt + 1)); \
+	  if [ "$$attempt" -ge 60 ]; then \
+	    echo "Timed out waiting for $(CONTAINER) to become healthy."; \
+	    $(ENGINE) logs $(CONTAINER); \
+	    exit 1; \
+	  fi; \
+	  sleep 1; \
+	done; \
+	echo "$(CONTAINER) is healthy."
 
 ## db-down: Stop and remove the PostgreSQL container (data volume is kept)
 db-down:
@@ -109,7 +128,7 @@ db-down:
 db-backup:
 	@set -eu; \
 		mkdir -p "$(BACKUP_DIR)"; \
-		backup="$(BACKUP_DIR)/openaiq-$$(date -u +%Y%m%dT%H%M%SZ).dump"; \
+		backup="$(BACKUP_DIR)/openaiq-backup-$$(date -u +%Y-%m-%d_%H-%M-%S_UTC).dump"; \
 		temporary="$$backup.tmp"; \
 		trap 'rm -f "$$temporary"' EXIT; \
 		test ! -e "$$backup"; \
@@ -118,13 +137,36 @@ db-backup:
 		trap - EXIT; \
 		echo "Database backup created: $$backup"
 
+## db-backups-clean: Delete all Open AIQ backup files after interactive confirmation
+db-backups-clean:
+	@set -eu; \
+		if [ ! -d "$(BACKUP_DIR)" ]; then \
+			echo "No backup directory found: $(BACKUP_DIR)"; \
+			exit 0; \
+		fi; \
+		files="$$(find "$(BACKUP_DIR)" -maxdepth 1 -type f -name 'openaiq-*.dump' -print)"; \
+		if [ -z "$$files" ]; then \
+			echo "No Open AIQ backups found in $(BACKUP_DIR)."; \
+			exit 0; \
+		fi; \
+		echo "The following backups will be permanently deleted:"; \
+		printf '  %s\n' $$files; \
+		printf 'Continue? [y/N] '; \
+		read -r answer; \
+		case "$$answer" in \
+			y|Y|yes|YES) ;; \
+			*) echo "Cancelled; no backups were deleted."; exit 0 ;; \
+		esac; \
+		find "$(BACKUP_DIR)" -maxdepth 1 -type f -name 'openaiq-*.dump' -delete; \
+		echo "Open AIQ backups deleted."
+
 ## db-clean: Back up the database, recreate its container and volume, then start fresh
 db-clean: require-database-url
 	@$(MAKE) db-backup
 	@$(MAKE) db-down
 	@$(ENGINE) volume rm $(CONTAINER_VOLUME)
 	@$(MAKE) db-up
-
+	@$(MAKE) migrate-up
 
 ## db-logs: Tail the PostgreSQL container logs
 db-logs:

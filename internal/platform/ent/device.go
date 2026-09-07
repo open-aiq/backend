@@ -29,6 +29,8 @@ type Device struct {
 	IsOutdoor bool `json:"is_outdoor,omitempty"`
 	// Whether the owner shares this device's data publicly
 	IsPublic bool `json:"is_public,omitempty"`
+	// Whether the owner explicitly shares the device's exact telemetry location publicly
+	IsLocationPublic bool `json:"is_location_public,omitempty"`
 	// Hex SHA-256 digest of the secret device key ("sk_<random>"); the raw key is shown once at creation/rotation and never stored
 	DeviceKey string `json:"-"`
 	// When the device was registered
@@ -64,7 +66,7 @@ func (*Device) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case device.FieldIsOutdoor, device.FieldIsPublic:
+		case device.FieldIsOutdoor, device.FieldIsPublic, device.FieldIsLocationPublic:
 			values[i] = new(sql.NullBool)
 		case device.FieldDeviceID, device.FieldName, device.FieldOwnerID, device.FieldDeviceKey:
 			values[i] = new(sql.NullString)
@@ -123,6 +125,12 @@ func (_m *Device) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_public", values[i])
 			} else if value.Valid {
 				_m.IsPublic = value.Bool
+			}
+		case device.FieldIsLocationPublic:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_location_public", values[i])
+			} else if value.Valid {
+				_m.IsLocationPublic = value.Bool
 			}
 		case device.FieldDeviceKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -199,6 +207,9 @@ func (_m *Device) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_public=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsPublic))
+	builder.WriteString(", ")
+	builder.WriteString("is_location_public=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsLocationPublic))
 	builder.WriteString(", ")
 	builder.WriteString("device_key=<sensitive>")
 	builder.WriteString(", ")

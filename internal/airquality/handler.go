@@ -75,6 +75,25 @@ func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 	h.respondCurrent(c, &id, Scope{Public: true})
 }
 
+// GetPublicMapDevices godoc
+// @Summary List public devices for the community map
+// @Description Returns the latest complete sample for devices whose owners explicitly publish both readings and exact location.
+// @Tags Public
+// @Produce json
+// @Success 200 {object} PublicMapResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /public/map/devices [get]
+func (h *Handler) GetPublicMapDevices(c *gin.Context) {
+	devices, err := h.service.GetPublicMapDevices(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get public map devices"})
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+	c.JSON(http.StatusOK, PublicMapResponse{Data: devices})
+}
+
 // respondCurrent renders the current aggregate, optionally scoped to a device.
 func (h *Handler) respondCurrent(c *gin.Context, deviceID *uuid.UUID, scope Scope) {
 	current, err := h.service.GetCurrent(c.Request.Context(), deviceID, scope)

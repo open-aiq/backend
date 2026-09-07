@@ -44,6 +44,9 @@ func (Device) Fields() []ent.Field {
 		field.Bool("is_public").
 			Default(false).
 			Comment("Whether the owner shares this device's data publicly"),
+		field.Bool("is_location_public").
+			Default(false).
+			Comment("Whether the owner explicitly shares the device's exact telemetry location publicly"),
 		field.String("device_key").
 			NotEmpty().
 			Sensitive().

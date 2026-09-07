@@ -13,6 +13,9 @@
 #
 # PM2.5 follows a daily sine wave plus noise; PM1.0/PM10 and AQI are derived
 # from it; temperature peaks mid-afternoon. A final row carries a location fix.
+# By default the selected development device is also made public and opted in
+# to exact location sharing so it appears on the community map. Pass map=false
+# to preserve its current visibility settings.
 #
 # Intended to be run via `make seed device=dev_...`, which passes the
 # environment below.
@@ -22,6 +25,8 @@ set -euo pipefail
 DEVICE_ID="${DEVICE_ID:-}"
 DATABASE_URL="${DATABASE_URL:-}"
 CONTAINER="${CONTAINER:-openaiq-postgres}"
+ENGINE="${ENGINE:-podman}"
+MAP_VISIBLE="${MAP_VISIBLE:-true}"
 
 die() {
 	echo "error: $*" >&2
@@ -32,8 +37,10 @@ die() {
 
 [ -n "$DEVICE_ID" ] || die "DEVICE_ID is required (public device id, e.g. dev_...)"
 [ -n "$DATABASE_URL" ] || die "DATABASE_URL is required (defined in .env)"
+case "$MAP_VISIBLE" in true|false) ;; *) die "MAP_VISIBLE must be true or false" ;; esac
 
-docker inspect "$CONTAINER" >/dev/null 2>&1 ||
+command -v "$ENGINE" >/dev/null 2>&1 || die "container engine '$ENGINE' is not installed"
+"$ENGINE" inspect "$CONTAINER" >/dev/null 2>&1 ||
 	die "container '$CONTAINER' is not running. Start it with: make db-up"
 
 # Derive the psql user/database from DATABASE_URL (postgres://user:pass@host:port/db?...).
@@ -46,13 +53,22 @@ db_name="${path%%\?*}"
 
 # :'device_id' is injected via --set; \gset aborts (with ON_ERROR_STOP) if the
 # device is unknown.
-docker exec -i "$CONTAINER" psql \
+"$ENGINE" exec -i "$CONTAINER" psql \
 	--username "$db_user" \
 	--dbname "$db_name" \
 	--set ON_ERROR_STOP=1 \
 	--set device_id="$DEVICE_ID" \
+	--set map_visible="$MAP_VISIBLE" \
 	--quiet <<'SQL'
 SELECT id AS dev_id FROM devices WHERE device_id = :'device_id' \gset
+
+-- Seed data is map-ready by default. This is deliberately opt-out because the
+-- command is only intended for local development databases.
+\if :map_visible
+UPDATE devices
+SET is_public = true, is_location_public = true, updated_at = now()
+WHERE id = :'dev_id'::uuid;
+\endif
 
 -- One reusable shape per tier: pm2_5 = base daily sine wave + noise;
 -- everything else is derived from pm2_5 / time of day.
@@ -96,4 +112,8 @@ VALUES
 SELECT count(*) AS total_readings FROM device_readings WHERE device_id = :'dev_id'::uuid;
 SQL
 
-echo "Seeded readings for $DEVICE_ID."
+if [ "$MAP_VISIBLE" = true ]; then
+	echo "Seeded readings for $DEVICE_ID and enabled it on the public map."
+else
+	echo "Seeded readings for $DEVICE_ID without changing its visibility."
+fi

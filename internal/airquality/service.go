@@ -72,10 +72,6 @@ func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID, scope Sco
 	if err != nil {
 		return nil, fmt.Errorf("get current: %w", err)
 	}
-	if scope.Public {
-		location = nil
-	}
-
 	return &CurrentAirQuality{
 		Status:      status,
 		LastSeen:    *lastSeen,
@@ -83,6 +79,26 @@ func (s *Service) GetCurrent(ctx context.Context, deviceID *uuid.UUID, scope Sco
 		SampleCount: count,
 		Location:    location,
 	}, nil
+}
+
+func (s *Service) GetPublicMapDevices(ctx context.Context) ([]PublicMapDevice, error) {
+	rows, err := s.repo.LatestPublicMapReadings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get public map devices: %w", err)
+	}
+	devices := make([]PublicMapDevice, 0, len(rows))
+	for _, row := range rows {
+		status := StatusOnline
+		if time.Since(row.MeasuredAt) > offlineThreshold {
+			status = StatusOffline
+		}
+		devices = append(devices, PublicMapDevice{
+			ID: row.ID.String(), Name: row.Name, IsOutdoor: row.IsOutdoor,
+			AQI: row.AQI, PM25: row.PM25, Temperature: row.Temperature,
+			Lat: row.Lat, Lon: row.Lon, MeasuredAt: row.MeasuredAt, Status: status,
+		})
+	}
+	return devices, nil
 }
 
 // timelineSpec defines how a timeline value maps to a query window, a

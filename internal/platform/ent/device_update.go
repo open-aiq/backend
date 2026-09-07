@@ -92,6 +92,20 @@ func (_u *DeviceUpdate) SetNillableIsPublic(v *bool) *DeviceUpdate {
 	return _u
 }
 
+// SetIsLocationPublic sets the "is_location_public" field.
+func (_u *DeviceUpdate) SetIsLocationPublic(v bool) *DeviceUpdate {
+	_u.mutation.SetIsLocationPublic(v)
+	return _u
+}
+
+// SetNillableIsLocationPublic sets the "is_location_public" field if the given value is not nil.
+func (_u *DeviceUpdate) SetNillableIsLocationPublic(v *bool) *DeviceUpdate {
+	if v != nil {
+		_u.SetIsLocationPublic(*v)
+	}
+	return _u
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (_u *DeviceUpdate) SetDeviceKey(v string) *DeviceUpdate {
 	_u.mutation.SetDeviceKey(v)
@@ -237,6 +251,9 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.IsPublic(); ok {
 		_spec.SetField(device.FieldIsPublic, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.IsLocationPublic(); ok {
+		_spec.SetField(device.FieldIsLocationPublic, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)
 	}
@@ -368,6 +385,20 @@ func (_u *DeviceUpdateOne) SetIsPublic(v bool) *DeviceUpdateOne {
 func (_u *DeviceUpdateOne) SetNillableIsPublic(v *bool) *DeviceUpdateOne {
 	if v != nil {
 		_u.SetIsPublic(*v)
+	}
+	return _u
+}
+
+// SetIsLocationPublic sets the "is_location_public" field.
+func (_u *DeviceUpdateOne) SetIsLocationPublic(v bool) *DeviceUpdateOne {
+	_u.mutation.SetIsLocationPublic(v)
+	return _u
+}
+
+// SetNillableIsLocationPublic sets the "is_location_public" field if the given value is not nil.
+func (_u *DeviceUpdateOne) SetNillableIsLocationPublic(v *bool) *DeviceUpdateOne {
+	if v != nil {
+		_u.SetIsLocationPublic(*v)
 	}
 	return _u
 }
@@ -546,6 +577,9 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 	}
 	if value, ok := _u.mutation.IsPublic(); ok {
 		_spec.SetField(device.FieldIsPublic, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsLocationPublic(); ok {
+		_spec.SetField(device.FieldIsLocationPublic, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)

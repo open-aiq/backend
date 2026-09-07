@@ -322,7 +322,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Partially updates a device: only the fields present in the body (name, is_outdoor, is_public) are changed.",
+                "description": "Partially updates a device. Exact location can only be shared by a public device, and making a device private revokes location sharing.",
                 "consumes": [
                     "application/json"
                 ],
@@ -546,6 +546,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/public/devices/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Get a public device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/device.PublicDeviceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/device.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/public/devices/{id}/current": {
             "get": {
                 "produces": [
@@ -620,6 +660,32 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/map/devices": {
+            "get": {
+                "description": "Returns the latest complete sample for devices whose owners explicitly publish both readings and exact location.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "List public devices for the community map",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/airquality.PublicMapResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/airquality.ErrorResponse"
                         }
@@ -776,12 +842,62 @@ const docTemplate = `{
                 }
             }
         },
+        "airquality.PublicMapDevice": {
+            "type": "object",
+            "properties": {
+                "aqi": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_outdoor": {
+                    "type": "boolean"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lon": {
+                    "type": "number"
+                },
+                "measured_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pm2_5": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "temperature": {
+                    "type": "number"
+                }
+            }
+        },
+        "airquality.PublicMapResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/airquality.PublicMapDevice"
+                    }
+                }
+            }
+        },
         "device.CreateDeviceRequest": {
             "type": "object",
             "required": [
                 "name"
             ],
             "properties": {
+                "is_location_public": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "is_outdoor": {
                     "type": "boolean",
                     "example": false
@@ -821,6 +937,10 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_location_public": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "is_outdoor": {
                     "type": "boolean",
                     "example": false
@@ -850,6 +970,10 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "is_location_public": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "is_outdoor": {
                     "type": "boolean",
@@ -926,6 +1050,14 @@ const docTemplate = `{
                 }
             }
         },
+        "device.PublicDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/device.PublicDevice"
+                }
+            }
+        },
         "device.RotateKeyResponse": {
             "type": "object",
             "properties": {
@@ -937,6 +1069,9 @@ const docTemplate = `{
         "device.UpdateDeviceRequest": {
             "type": "object",
             "properties": {
+                "is_location_public": {
+                    "type": "boolean"
+                },
                 "is_outdoor": {
                     "type": "boolean"
                 },

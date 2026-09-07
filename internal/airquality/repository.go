@@ -26,6 +26,18 @@ type BucketPoint struct {
 	Metrics AirQuality
 }
 
+type PublicMapReading struct {
+	ID          uuid.UUID
+	Name        string
+	IsOutdoor   bool
+	AQI         int
+	PM25        float64
+	Temperature float64
+	Lat         float64
+	Lon         float64
+	MeasuredAt  time.Time
+}
+
 // Repository defines the data access interface for aggregated air quality
 // data. On every method, a non-nil deviceID restricts the readings to that
 // device (by internal id); nil aggregates across all devices.
@@ -44,6 +56,7 @@ type Repository interface {
 	// readings exist at all.
 	LastSeen(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*time.Time, error)
 	DeviceAccessible(ctx context.Context, deviceID uuid.UUID, scope Scope) (bool, error)
+	LatestPublicMapReadings(ctx context.Context) ([]PublicMapReading, error)
 }
 
 // entRepository is an Ent-backed implementation of Repository over device readings.
@@ -196,7 +209,11 @@ func (r *entRepository) LastSeen(ctx context.Context, deviceID *uuid.UUID, scope
 }
 
 func (r *entRepository) LatestLocation(ctx context.Context, deviceID *uuid.UUID, scope Scope) (*Location, error) {
-	reading, err := r.scopedQuery(deviceID, scope).
+	query := r.scopedQuery(deviceID, scope)
+	if scope.Public {
+		query = query.Where(entreading.HasDeviceWith(entdevice.IsLocationPublic(true)))
+	}
+	reading, err := query.
 		Where(entreading.LatNotNil(), entreading.LonNotNil()).
 		Order(entreading.ByCreatedAt(entsql.OrderDesc())).
 		First(ctx)
@@ -213,4 +230,44 @@ func (r *entRepository) LatestLocation(ctx context.Context, deviceID *uuid.UUID,
 		Provider:  reading.LocationProvider,
 		Timestamp: reading.CreatedAt,
 	}, nil
+}
+
+func (r *entRepository) LatestPublicMapReadings(ctx context.Context) ([]PublicMapReading, error) {
+	readings, err := r.client.DeviceReading.Query().
+		Where(entreading.HasDeviceWith(entdevice.IsPublic(true), entdevice.IsLocationPublic(true))).
+		Where(predicate.DeviceReading(func(latest *entsql.Selector) {
+			newer := entsql.Table(entreading.Table)
+			latest.Where(entsql.Not(entsql.Exists(
+				entsql.Select().From(newer).Where(entsql.And(
+					entsql.ColumnsEQ(newer.C(entreading.FieldDeviceID), latest.C(entreading.FieldDeviceID)),
+					entsql.Or(
+						entsql.ColumnsGT(newer.C(entreading.FieldCreatedAt), latest.C(entreading.FieldCreatedAt)),
+						entsql.And(
+							entsql.ColumnsEQ(newer.C(entreading.FieldCreatedAt), latest.C(entreading.FieldCreatedAt)),
+							entsql.ColumnsGT(newer.C(entreading.FieldID), latest.C(entreading.FieldID)),
+						),
+					),
+				)),
+			)))
+		})).
+		WithDevice().
+		Order(entreading.ByCreatedAt(entsql.OrderDesc())).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query map devices: %w", err)
+	}
+
+	result := make([]PublicMapReading, 0, len(readings))
+	for _, reading := range readings {
+		if reading.Lat == nil || reading.Lon == nil {
+			continue
+		}
+		d := reading.Edges.Device
+		result = append(result, PublicMapReading{
+			ID: d.ID, Name: d.Name, IsOutdoor: d.IsOutdoor,
+			AQI: reading.Aqi, PM25: reading.Pm25, Temperature: reading.Temperature,
+			Lat: *reading.Lat, Lon: *reading.Lon, MeasuredAt: reading.CreatedAt,
+		})
+	}
+	return result, nil
 }

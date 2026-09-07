@@ -81,6 +81,11 @@ func IsPublic(v bool) predicate.Device {
 	return predicate.Device(sql.FieldEQ(FieldIsPublic, v))
 }
 
+// IsLocationPublic applies equality check predicate on the "is_location_public" field. It's identical to IsLocationPublicEQ.
+func IsLocationPublic(v bool) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldIsLocationPublic, v))
+}
+
 // DeviceKey applies equality check predicate on the "device_key" field. It's identical to DeviceKeyEQ.
 func DeviceKey(v string) predicate.Device {
 	return predicate.Device(sql.FieldEQ(FieldDeviceKey, v))
@@ -319,6 +324,16 @@ func IsPublicEQ(v bool) predicate.Device {
 // IsPublicNEQ applies the NEQ predicate on the "is_public" field.
 func IsPublicNEQ(v bool) predicate.Device {
 	return predicate.Device(sql.FieldNEQ(FieldIsPublic, v))
+}
+
+// IsLocationPublicEQ applies the EQ predicate on the "is_location_public" field.
+func IsLocationPublicEQ(v bool) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldIsLocationPublic, v))
+}
+
+// IsLocationPublicNEQ applies the NEQ predicate on the "is_location_public" field.
+func IsLocationPublicNEQ(v bool) predicate.Device {
+	return predicate.Device(sql.FieldNEQ(FieldIsLocationPublic, v))
 }
 
 // DeviceKeyEQ applies the EQ predicate on the "device_key" field.

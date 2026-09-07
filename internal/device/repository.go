@@ -14,8 +14,9 @@ import (
 type Repository interface {
 	// Create stores a new device. deviceKeyHash is the SHA-256 digest of the
 	// secret key, never the raw key.
-	Create(ctx context.Context, ownerID, deviceID, name, deviceKeyHash string, isOutdoor, isPublic bool) (*ent.Device, error)
+	Create(ctx context.Context, ownerID, deviceID, name, deviceKeyHash string, isOutdoor, isPublic, isLocationPublic bool) (*ent.Device, error)
 	List(ctx context.Context, ownerID string) ([]*ent.Device, error)
+	Get(ctx context.Context, ownerID string, id uuid.UUID) (*ent.Device, error)
 	ListPublic(ctx context.Context) ([]*ent.Device, error)
 	GetPublic(ctx context.Context, id uuid.UUID) (*ent.Device, error)
 	// GetByDeviceID returns the device with the given public device_id. It
@@ -44,7 +45,7 @@ func NewEntRepository(client *ent.Client) Repository {
 	return &entRepository{client: client}
 }
 
-func (r *entRepository) Create(ctx context.Context, ownerID, deviceID, name, deviceKeyHash string, isOutdoor, isPublic bool) (*ent.Device, error) {
+func (r *entRepository) Create(ctx context.Context, ownerID, deviceID, name, deviceKeyHash string, isOutdoor, isPublic, isLocationPublic bool) (*ent.Device, error) {
 	return r.client.Device.
 		Create().
 		SetDeviceID(deviceID).
@@ -53,7 +54,12 @@ func (r *entRepository) Create(ctx context.Context, ownerID, deviceID, name, dev
 		SetDeviceKey(deviceKeyHash).
 		SetIsOutdoor(isOutdoor).
 		SetIsPublic(isPublic).
+		SetIsLocationPublic(isLocationPublic).
 		Save(ctx)
+}
+
+func (r *entRepository) Get(ctx context.Context, ownerID string, id uuid.UUID) (*ent.Device, error) {
+	return r.client.Device.Query().Where(entdevice.ID(id), entdevice.OwnerID(ownerID)).Only(ctx)
 }
 
 func (r *entRepository) List(ctx context.Context, ownerID string) ([]*ent.Device, error) {
@@ -89,6 +95,7 @@ func (r *entRepository) Update(ctx context.Context, ownerID string, id uuid.UUID
 		SetNillableName(req.Name).
 		SetNillableIsOutdoor(req.IsOutdoor).
 		SetNillableIsPublic(req.IsPublic).
+		SetNillableIsLocationPublic(req.IsLocationPublic).
 		Save(ctx)
 }
 

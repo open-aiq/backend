@@ -41,6 +41,12 @@ PostgreSQL runs in a Docker container whose user, password, database, and port a
 derived from `DATABASE_URL` in your `.env`, so there's nothing to configure twice.
 Start it and manage it with the `db-*` targets in `make help`.
 
+Create a PostgreSQL custom-format backup with `make db-backup`. Backups use
+readable UTC filenames such as
+`backups/openaiq-backup-2026-09-07_04-30-00_UTC.dump`. To remove all Open AIQ
+backups, run `make db-backups-clean`; it lists the files and asks for confirmation
+before deleting anything.
+
 The schema is managed with [Ent](https://entgo.io) and auto-migrated on startup, so
 no manual migration step is needed in development. After editing a schema in
 `internal/platform/ent/schema/`, regenerate the Ent client with `make generate`
@@ -103,3 +109,18 @@ The logic lives in [`scripts/release.sh`](scripts/release.sh).
 ## API Documentation
 
 Swagger UI: http://localhost:8080/swagger/index.html
+
+## Public map and location privacy
+
+`GET /api/v1/public/map/devices` returns one latest complete reading per map-visible
+device for clustering and marker rendering. A device is included only when its
+owner enables both `is_public` and `is_location_public`. Location sharing exposes
+the exact coordinates from the latest telemetry sample; making a device private
+automatically revokes that consent. Existing and newly migrated devices default
+to private location.
+
+For a map-ready local dataset, choose an existing device ID from the dashboard
+and run `make seed device=dev_<id>`. This inserts chart history plus a current
+Karachi location and enables both public visibility flags. Use
+`make seed device=dev_<id> map=false` when readings should be added without
+changing that device's visibility.

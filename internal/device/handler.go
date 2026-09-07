@@ -47,6 +47,10 @@ func (h *Handler) Create(c *gin.Context) {
 
 	created, err := h.service.Create(c.Request.Context(), middleware.UserID(c), req)
 	if err != nil {
+		if errors.Is(err, ErrLocationRequiresPublic) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Location sharing requires a public device"})
+			return
+		}
 		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create device"})
 		return
@@ -93,10 +97,38 @@ func (h *Handler) ListPublic(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, ListPublicDevicesResponse{Data: devices})
 }
 
+// GetPublic godoc
+// @Summary Get a public device
+// @Tags Public
+// @Produce json
+// @Param id path string true "Device id (UUID)"
+// @Success 200 {object} PublicDeviceResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /public/devices/{id} [get]
+func (h *Handler) GetPublic(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid device id", Details: "id must be a UUID"})
+		return
+	}
+	publicDevice, err := h.service.GetPublic(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrDeviceNotFound) {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			return
+		}
+		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get public device"})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, PublicDeviceResponse{Data: *publicDevice})
+}
+
 // Update godoc
 //
 // @Summary Update a device
-// @Description Partially updates a device: only the fields present in the body (name, is_outdoor, is_public) are changed.
+// @Description Partially updates a device. Exact location can only be shared by a public device, and making a device private revokes location sharing.
 // @Tags Devices
 // @Accept json
 // @Produce json
@@ -135,8 +167,10 @@ func (h *Handler) Update(c *gin.Context) {
 		case errors.Is(err, ErrNoUpdateFields):
 			c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error:   "No fields to update",
-				Details: "provide at least one of: name, is_outdoor, is_public",
+				Details: "provide at least one of: name, is_outdoor, is_public, is_location_public",
 			})
+		case errors.Is(err, ErrLocationRequiresPublic):
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Location sharing requires a public device"})
 		case errors.Is(err, ErrDeviceNotFound):
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
 		default:

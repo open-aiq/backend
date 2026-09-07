@@ -25,6 +25,8 @@ const (
 	FieldIsOutdoor = "is_outdoor"
 	// FieldIsPublic holds the string denoting the is_public field in the database.
 	FieldIsPublic = "is_public"
+	// FieldIsLocationPublic holds the string denoting the is_location_public field in the database.
+	FieldIsLocationPublic = "is_location_public"
 	// FieldDeviceKey holds the string denoting the device_key field in the database.
 	FieldDeviceKey = "device_key"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldOwnerID,
 	FieldIsOutdoor,
 	FieldIsPublic,
+	FieldIsLocationPublic,
 	FieldDeviceKey,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -76,6 +79,8 @@ var (
 	DefaultIsOutdoor bool
 	// DefaultIsPublic holds the default value on creation for the "is_public" field.
 	DefaultIsPublic bool
+	// DefaultIsLocationPublic holds the default value on creation for the "is_location_public" field.
+	DefaultIsLocationPublic bool
 	// DeviceKeyValidator is a validator for the "device_key" field. It is called by the builders before save.
 	DeviceKeyValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -119,6 +124,11 @@ func ByIsOutdoor(opts ...sql.OrderTermOption) OrderOption {
 // ByIsPublic orders the results by the is_public field.
 func ByIsPublic(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsPublic, opts...).ToFunc()
+}
+
+// ByIsLocationPublic orders the results by the is_location_public field.
+func ByIsLocationPublic(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsLocationPublic, opts...).ToFunc()
 }
 
 // ByDeviceKey orders the results by the device_key field.

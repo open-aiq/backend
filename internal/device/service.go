@@ -46,6 +46,9 @@ func NewService(repo Repository) *Service {
 // device_key. The returned CreatedDevice contains the key, which is the only
 // time it is ever exposed.
 func (s *Service) Create(ctx context.Context, ownerID string, req CreateDeviceRequest) (*CreatedDevice, error) {
+	if req.IsLocationPublic && !req.IsPublic {
+		return nil, ErrLocationRequiresPublic
+	}
 	deviceID := deviceIDPrefix + strings.ReplaceAll(uuid.New().String(), "-", "")
 
 	deviceKey, err := generateDeviceKey()
@@ -53,32 +56,55 @@ func (s *Service) Create(ctx context.Context, ownerID string, req CreateDeviceRe
 		return nil, fmt.Errorf("generate device key: %w", err)
 	}
 
-	created, err := s.repo.Create(ctx, ownerID, deviceID, req.Name, hashDeviceKey(deviceKey), req.IsOutdoor, req.IsPublic)
+	created, err := s.repo.Create(ctx, ownerID, deviceID, req.Name, hashDeviceKey(deviceKey), req.IsOutdoor, req.IsPublic, req.IsLocationPublic)
 	if err != nil {
 		return nil, fmt.Errorf("create device: %w", err)
 	}
 
 	return &CreatedDevice{
-		ID:        created.ID,
-		DeviceID:  created.DeviceID,
-		Name:      created.Name,
-		IsOutdoor: created.IsOutdoor,
-		IsPublic:  created.IsPublic,
-		DeviceKey: deviceKey,
-		CreatedAt: created.CreatedAt,
-		UpdatedAt: created.UpdatedAt,
+		ID:               created.ID,
+		DeviceID:         created.DeviceID,
+		Name:             created.Name,
+		IsOutdoor:        created.IsOutdoor,
+		IsPublic:         created.IsPublic,
+		IsLocationPublic: created.IsLocationPublic,
+		DeviceKey:        deviceKey,
+		CreatedAt:        created.CreatedAt,
+		UpdatedAt:        created.UpdatedAt,
 	}, nil
 }
 
 // ErrNoUpdateFields is returned when an update request contains no fields.
 var ErrNoUpdateFields = errors.New("no fields to update")
+var ErrLocationRequiresPublic = errors.New("location sharing requires a public device")
 
-// Update applies a partial update (name, is_outdoor, is_public) to a device
+// Update applies a partial update to a device, enforcing explicit location
+// consent and revoking it whenever the device becomes private.
 // and returns its updated public view. It returns ErrDeviceNotFound if no
 // device with that id exists, and ErrNoUpdateFields if the request is empty.
 func (s *Service) Update(ctx context.Context, ownerID string, id uuid.UUID, req UpdateDeviceRequest) (*Device, error) {
-	if req.Name == nil && req.IsOutdoor == nil && req.IsPublic == nil {
+	if req.Name == nil && req.IsOutdoor == nil && req.IsPublic == nil && req.IsLocationPublic == nil {
 		return nil, ErrNoUpdateFields
+	}
+	if req.IsPublic != nil && !*req.IsPublic {
+		locationPrivate := false
+		req.IsLocationPublic = &locationPrivate
+	}
+	if req.IsLocationPublic != nil && *req.IsLocationPublic {
+		isPublic := req.IsPublic != nil && *req.IsPublic
+		if req.IsPublic == nil {
+			existing, err := s.repo.Get(ctx, ownerID, id)
+			if err != nil {
+				if ent.IsNotFound(err) {
+					return nil, ErrDeviceNotFound
+				}
+				return nil, fmt.Errorf("get device: %w", err)
+			}
+			isPublic = existing.IsPublic
+		}
+		if !isPublic {
+			return nil, ErrLocationRequiresPublic
+		}
 	}
 
 	updated, err := s.repo.Update(ctx, ownerID, id, req)
@@ -112,14 +138,15 @@ func (s *Service) RotateKey(ctx context.Context, ownerID string, id uuid.UUID) (
 	}
 
 	return &CreatedDevice{
-		ID:        updated.ID,
-		DeviceID:  updated.DeviceID,
-		Name:      updated.Name,
-		IsOutdoor: updated.IsOutdoor,
-		IsPublic:  updated.IsPublic,
-		DeviceKey: deviceKey,
-		CreatedAt: updated.CreatedAt,
-		UpdatedAt: updated.UpdatedAt,
+		ID:               updated.ID,
+		DeviceID:         updated.DeviceID,
+		Name:             updated.Name,
+		IsOutdoor:        updated.IsOutdoor,
+		IsPublic:         updated.IsPublic,
+		IsLocationPublic: updated.IsLocationPublic,
+		DeviceKey:        deviceKey,
+		CreatedAt:        updated.CreatedAt,
+		UpdatedAt:        updated.UpdatedAt,
 	}, nil
 }
 
@@ -197,13 +224,14 @@ func toPublicDevice(d *ent.Device) PublicDevice {
 // toDevice maps an Ent entity to the public device view (no secret key).
 func toDevice(d *ent.Device) Device {
 	return Device{
-		ID:        d.ID,
-		DeviceID:  d.DeviceID,
-		Name:      d.Name,
-		IsOutdoor: d.IsOutdoor,
-		IsPublic:  d.IsPublic,
-		CreatedAt: d.CreatedAt,
-		UpdatedAt: d.UpdatedAt,
+		ID:               d.ID,
+		DeviceID:         d.DeviceID,
+		Name:             d.Name,
+		IsOutdoor:        d.IsOutdoor,
+		IsPublic:         d.IsPublic,
+		IsLocationPublic: d.IsLocationPublic,
+		CreatedAt:        d.CreatedAt,
+		UpdatedAt:        d.UpdatedAt,
 	}
 }
 

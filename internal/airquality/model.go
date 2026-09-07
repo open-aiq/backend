@@ -72,6 +72,24 @@ type CustomRangeResponse struct {
 	Data []DataPoint `json:"data"`
 }
 
+// PublicMapDevice is the latest complete public reading for one map-visible device.
+type PublicMapDevice struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	IsOutdoor   bool      `json:"is_outdoor"`
+	AQI         int       `json:"aqi"`
+	PM25        float64   `json:"pm2_5"`
+	Temperature float64   `json:"temperature"`
+	Lat         float64   `json:"lat"`
+	Lon         float64   `json:"lon"`
+	MeasuredAt  time.Time `json:"measured_at"`
+	Status      string    `json:"status"`
+}
+
+type PublicMapResponse struct {
+	Data []PublicMapDevice `json:"data"`
+}
+
 type ErrorResponse struct {
 	Error   string `json:"error" example:"Missing or invalid query parameters"`
 	Details string `json:"details,omitempty" example:"timeline is required"`
