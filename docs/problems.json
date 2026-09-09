@@ -1,0 +1,65 @@
+[
+  {
+    "slug": "malformed-request",
+    "title": "Malformed request",
+    "status": 400,
+    "description": "The request could not be decoded.",
+    "type": "https://docs.air-iq.net/reference/errors/#malformed-request"
+  },
+  {
+    "slug": "unauthorized",
+    "title": "Unauthorized",
+    "status": 401,
+    "description": "Valid credentials are required.",
+    "type": "https://docs.air-iq.net/reference/errors/#unauthorized"
+  },
+  {
+    "slug": "not-found",
+    "title": "Resource not found",
+    "status": 404,
+    "description": "The requested resource was not found.",
+    "type": "https://docs.air-iq.net/reference/errors/#not-found"
+  },
+  {
+    "slug": "method-not-allowed",
+    "title": "Method not allowed",
+    "status": 405,
+    "description": "The request method is not supported for this resource.",
+    "type": "https://docs.air-iq.net/reference/errors/#method-not-allowed"
+  },
+  {
+    "slug": "no-readings",
+    "title": "No readings available",
+    "status": 404,
+    "description": "The device has not reported any readings.",
+    "type": "https://docs.air-iq.net/reference/errors/#no-readings"
+  },
+  {
+    "slug": "content-too-large",
+    "title": "Request content too large",
+    "status": 413,
+    "description": "The request body exceeds the accepted size.",
+    "type": "https://docs.air-iq.net/reference/errors/#content-too-large"
+  },
+  {
+    "slug": "unsupported-media-type",
+    "title": "Unsupported media type",
+    "status": 415,
+    "description": "The request uses an unsupported media type.",
+    "type": "https://docs.air-iq.net/reference/errors/#unsupported-media-type"
+  },
+  {
+    "slug": "validation-error",
+    "title": "Request validation failed",
+    "status": 422,
+    "description": "One or more request values are invalid.",
+    "type": "https://docs.air-iq.net/reference/errors/#validation-error"
+  },
+  {
+    "slug": "internal-error",
+    "title": "Internal server error",
+    "status": 500,
+    "description": "The server could not complete the request.",
+    "type": "https://docs.air-iq.net/reference/errors/#internal-error"
+  }
+]
