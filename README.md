@@ -2,6 +2,8 @@
 
 Air quality monitoring API built with Go, Gin, and Ent (PostgreSQL).
 
+> **Documentation:** See the [unified Open AIQ documentation](https://open-aiq.github.io/docs/) for system architecture, device guides, shared contracts, and the generated API reference. This README remains the source of truth for backend setup and commands.
+
 ## Prerequisites
 
 - Go 1.26+
@@ -109,6 +111,11 @@ The logic lives in [`scripts/release.sh`](scripts/release.sh).
 ## API Documentation
 
 Swagger UI: http://localhost:8080/swagger/index.html
+
+API failures use [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
+with the `application/problem+json` media type. The canonical error catalog is
+generated from `internal/platform/problem` by `make swagger` and published at
+[docs.air-iq.net/reference/errors](https://docs.air-iq.net/reference/errors/).
 
 ## Public map and location privacy
 

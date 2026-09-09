@@ -6,6 +6,7 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 	"github.com/gin-gonic/gin"
+	"go-aiq-backend/internal/platform/problem"
 )
 
 const userIDKey = "clerk_user_id"
@@ -17,10 +18,8 @@ func ClerkAuth(secretKey string, authorizedParties []string) gin.HandlerFunc {
 	for _, party := range authorizedParties {
 		allowed[party] = struct{}{}
 	}
-	failure := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"error":"Unauthorized"}`))
+	failure := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		problem.WriteHTTP(w, r, problem.Unauthorized, "A valid Clerk session token is required.")
 	})
 	verify := clerkhttp.WithHeaderAuthorization(
 		clerkhttp.AuthorizedParty(func(party string) bool { _, ok := allowed[party]; return party != "" && ok }),
@@ -40,7 +39,7 @@ func ClerkAuth(secretKey string, authorizedParties []string) gin.HandlerFunc {
 		})).ServeHTTP(c.Writer, c.Request)
 		if !verified {
 			if !c.Writer.Written() {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+				problem.Write(c, problem.Unauthorized, "A valid Clerk session token is required.")
 			}
 			c.Abort()
 			return

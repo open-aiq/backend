@@ -17,7 +17,7 @@ import (
 // New opens a PostgreSQL connection using pgx, applies pool settings, verifies
 // connectivity with a ping, and returns an Ent client.
 func New(cfg *config.Config) (*ent.Client, error) {
-	db, err := sql.Open("pgx", cfg.DatabaseURL)
+	db, err := sql.Open("pgx", cfg.DatabaseURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
 	}

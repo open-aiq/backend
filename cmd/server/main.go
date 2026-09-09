@@ -22,6 +22,7 @@ import (
 	"go-aiq-backend/internal/platform/config"
 	"go-aiq-backend/internal/platform/database"
 	"go-aiq-backend/internal/platform/middleware"
+	"go-aiq-backend/internal/platform/problem"
 )
 
 // version is the build version, injected at release time via
@@ -33,6 +34,10 @@ var version = "dev"
 // @description Air quality monitoring API
 // @host localhost:8080
 // @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Clerk session token using the Bearer scheme. Example: "Bearer {token}"
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -79,8 +84,16 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	r.Use(middleware.RequestLogger(logger), gin.Recovery())
+	r.HandleMethodNotAllowed = true
+	r.Use(middleware.RequestLogger(logger), gin.CustomRecovery(func(c *gin.Context, recovered any) {
+		logger.Error("panic recovered", "error", recovered)
+		if !c.Writer.Written() {
+			problem.Write(c, problem.Internal, "The server could not complete the request.")
+		}
+	}))
 	r.Use(middleware.CORS(cfg.CORSAllowedOrigins))
+	r.NoRoute(func(c *gin.Context) { problem.Write(c, problem.NotFound, "Route not found.") })
+	r.NoMethod(func(c *gin.Context) { problem.Write(c, problem.MethodNotAllowed, "Method not allowed.") })
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

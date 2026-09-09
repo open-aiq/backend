@@ -29,6 +29,7 @@ dev:
 ## swagger: Generate swagger docs
 swagger:
 	swag init -g cmd/server/main.go -o docs
+	go run ./cmd/problemgen -out docs/problems.json
 
 
 ## build: Regenerate code, generate swagger, and build the binary

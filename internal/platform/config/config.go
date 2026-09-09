@@ -1,196 +1,127 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	goenv "github.com/caarlos0/env/v11"
+	"github.com/go-playground/mold/v4/modifiers"
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 )
 
-// Config holds the application configuration.
 type Config struct {
-	Env                    string
-	Host                   string
-	Port                   string
-	DatabaseURL            string
-	CORSAllowedOrigins     []string
-	ClerkSecretKey         string
-	ClerkAuthorizedParties []string
+	Env                    string   `env:"ENV,required" mod:"trim" validate:"required,oneof=development test production"`
+	Host                   string   `env:"HOST,required" mod:"trim" validate:"hostname_portless"`
+	Port                   uint16   `env:"PORT,required" validate:"required"`
+	DatabaseURL            url.URL  `env:"DATABASE_URL,required" validate:"postgres_url"`
+	CORSAllowedOrigins     []string `env:"CORS_ALLOWED_ORIGINS,required" envSeparator:"," mod:"dive,trim" validate:"required,min=1,dive,http_origin"`
+	ClerkSecretKey         string   `env:"CLERK_SECRET_KEY,required" mod:"trim" validate:"required"`
+	ClerkAuthorizedParties []string `env:"CLERK_AUTHORIZED_PARTIES,required" envSeparator:"," mod:"dive,trim" validate:"required,min=1,dive,http_origin"`
 	DB                     DBConfig
 }
 
-// Addr returns the host:port address the HTTP server should bind to.
-// An empty Host means all interfaces (0.0.0.0), reachable from other devices.
-func (c *Config) Addr() string {
-	return c.Host + c.Port
-}
-
-// DBConfig holds connection-pool tuning for the database.
 type DBConfig struct {
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
+	MaxOpenConns    int           `env:"DB_MAX_OPEN_CONNS,required" validate:"gte=1"`
+	MaxIdleConns    int           `env:"DB_MAX_IDLE_CONNS,required" validate:"gte=0,ltefield=MaxOpenConns"`
+	ConnMaxLifetime time.Duration `env:"DB_CONN_MAX_LIFETIME,required" validate:"gte=0"`
 }
 
-// IsProduction reports whether the app is running in a production environment.
-func (c *Config) IsProduction() bool {
-	return strings.EqualFold(c.Env, "production")
-}
+func (c *Config) Addr() string { return net.JoinHostPort(c.Host, strconv.Itoa(int(c.Port))) }
 
-// Load reads configuration from the environment and validates it. Every variable
-// is required — there are no defaults — so the environment (or .env) is the single
-// source of truth. Missing or invalid values are collected and returned together so
-// the caller can fail fast.
+func (c *Config) IsProduction() bool { return c.Env == "production" }
+
 func Load() (*Config, error) {
-	// Load .env if present. Real environment variables take precedence over
-	// .env values, and a missing file is not an error (e.g. in production where
-	// the variables are set directly).
 	_ = godotenv.Load()
-
-	var errs []error
-
-	cfg := &Config{
-		Env:                    requireString("ENV", &errs),
-		Host:                   requirePresent("HOST", &errs), // may be empty = all interfaces (0.0.0.0)
-		Port:                   normalizePort(requireString("PORT", &errs)),
-		DatabaseURL:            requireString("DATABASE_URL", &errs),
-		CORSAllowedOrigins:     requireStringSlice("CORS_ALLOWED_ORIGINS", &errs),
-		ClerkSecretKey:         requireString("CLERK_SECRET_KEY", &errs),
-		ClerkAuthorizedParties: requireStringSlice("CLERK_AUTHORIZED_PARTIES", &errs),
-		DB: DBConfig{
-			MaxOpenConns:    requireInt("DB_MAX_OPEN_CONNS", &errs),
-			MaxIdleConns:    requireInt("DB_MAX_IDLE_CONNS", &errs),
-			ConnMaxLifetime: requireDuration("DB_CONN_MAX_LIFETIME", &errs),
-		},
-	}
-
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("invalid configuration: %w", errors.Join(errs...))
-	}
-
-	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
-	}
-
-	return cfg, nil
+	return parse(os.Environ())
 }
 
-// validate checks that the configuration values are coherent.
-func (c *Config) validate() error {
-	if c.DatabaseURL == "" {
-		return fmt.Errorf("DATABASE_URL is required")
-	}
-
-	u, err := url.Parse(c.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("DATABASE_URL is not a valid URL: %w", err)
-	}
-	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
-		return fmt.Errorf("DATABASE_URL must use the postgres scheme, got %q", u.Scheme)
-	}
-	if u.Host == "" {
-		return fmt.Errorf("DATABASE_URL must include a host")
-	}
-
-	if c.DB.MaxOpenConns < 1 {
-		return fmt.Errorf("DB_MAX_OPEN_CONNS must be at least 1, got %d", c.DB.MaxOpenConns)
-	}
-	if c.DB.MaxIdleConns < 0 {
-		return fmt.Errorf("DB_MAX_IDLE_CONNS must not be negative, got %d", c.DB.MaxIdleConns)
-	}
-	if c.DB.MaxIdleConns > c.DB.MaxOpenConns {
-		return fmt.Errorf("DB_MAX_IDLE_CONNS (%d) must not exceed DB_MAX_OPEN_CONNS (%d)",
-			c.DB.MaxIdleConns, c.DB.MaxOpenConns)
-	}
-	if c.DB.ConnMaxLifetime < 0 {
-		return fmt.Errorf("DB_CONN_MAX_LIFETIME must not be negative, got %s", c.DB.ConnMaxLifetime)
-	}
-
-	return nil
-}
-
-// requireString returns the trimmed value of a required environment variable,
-// recording an error if it is unset or empty.
-func requireString(key string, errs *[]error) string {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		*errs = append(*errs, fmt.Errorf("%s is required", key))
-		return ""
-	}
-	return v
-}
-
-// requireStringSlice parses a required comma-separated environment variable into a
-// slice of trimmed, non-empty values, recording an error if it is unset or empty.
-func requireStringSlice(key string, errs *[]error) []string {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		*errs = append(*errs, fmt.Errorf("%s is required", key))
-		return nil
-	}
-
-	var out []string
-	for _, part := range strings.Split(v, ",") {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			out = append(out, trimmed)
+func parse(environment []string) (*Config, error) {
+	values := make(map[string]string, len(environment))
+	for _, entry := range environment {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[key] = value
 		}
 	}
-	return out
-}
-
-// requirePresent returns the trimmed value of a variable that must be present but
-// may be empty (e.g. HOST, where empty means "all interfaces"). It records an error
-// only when the variable is entirely unset.
-func requirePresent(key string, errs *[]error) string {
-	v, ok := os.LookupEnv(key)
-	if !ok {
-		*errs = append(*errs, fmt.Errorf("%s is required (set it empty for all interfaces)", key))
-		return ""
-	}
-	return strings.TrimSpace(v)
-}
-
-// requireInt parses a required integer environment variable, recording an error if
-// it is unset, empty, or not a valid integer.
-func requireInt(key string, errs *[]error) int {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		*errs = append(*errs, fmt.Errorf("%s is required", key))
-		return 0
-	}
-	n, err := strconv.Atoi(v)
+	cfg, err := goenv.ParseAsWithOptions[Config](goenv.Options{Environment: values})
 	if err != nil {
-		*errs = append(*errs, fmt.Errorf("%s must be an integer, got %q", key, v))
-		return 0
+		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
-	return n
+	if err := modifiers.New().Struct(context.Background(), &cfg); err != nil {
+		return nil, fmt.Errorf("normalize configuration: %w", err)
+	}
+
+	v := validator.New(validator.WithRequiredStructEnabled())
+	_ = v.RegisterValidation("postgres_url", validatePostgresURL)
+	_ = v.RegisterValidation("http_origin", validateHTTPOrigin)
+	_ = v.RegisterValidation("hostname_portless", validateHost)
+	if err := v.Struct(cfg); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+	if err := validateOriginSets(&cfg); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+	return &cfg, nil
 }
 
-// requireDuration parses a required duration environment variable (e.g. "5m",
-// "30s"), recording an error if it is unset, empty, or not a valid duration.
-func requireDuration(key string, errs *[]error) time.Duration {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		*errs = append(*errs, fmt.Errorf("%s is required", key))
-		return 0
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		*errs = append(*errs, fmt.Errorf("%s must be a duration (e.g. 5m, 30s), got %q", key, v))
-		return 0
-	}
-	return d
+func validatePostgresURL(fl validator.FieldLevel) bool {
+	u, ok := fl.Field().Interface().(url.URL)
+	return ok && (u.Scheme == "postgres" || u.Scheme == "postgresql") && u.Host != ""
 }
 
-// normalizePort ensures the port string is in the ":<port>" form expected by net/http.
-func normalizePort(port string) string {
-	if !strings.HasPrefix(port, ":") {
-		return ":" + port
+func validateHTTPOrigin(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == "*" {
+		return true
 	}
-	return port
+	u, err := url.Parse(value)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && u.Path == "" && u.RawQuery == "" && u.Fragment == ""
+}
+
+func validateHost(fl validator.FieldLevel) bool {
+	host := fl.Field().String()
+	return host == "" || net.ParseIP(host) != nil || (!strings.Contains(host, ":") && validHostname(host))
+}
+
+func validHostname(host string) bool {
+	if len(host) > 253 {
+		return false
+	}
+	for _, label := range strings.Split(host, ".") {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, r := range label {
+			if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func validateOriginSets(cfg *Config) error {
+	var errs []error
+	if len(cfg.CORSAllowedOrigins) > 1 {
+		for _, origin := range cfg.CORSAllowedOrigins {
+			if origin == "*" {
+				errs = append(errs, errors.New("CORS_ALLOWED_ORIGINS must not combine * with explicit origins"))
+				break
+			}
+		}
+	}
+	for _, party := range cfg.ClerkAuthorizedParties {
+		if party == "*" {
+			errs = append(errs, errors.New("CLERK_AUTHORIZED_PARTIES must not contain *"))
+		}
+	}
+	return errors.Join(errs...)
 }

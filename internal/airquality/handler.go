@@ -7,7 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go-aiq-backend/internal/platform/input"
 	"go-aiq-backend/internal/platform/middleware"
+	"go-aiq-backend/internal/platform/problem"
 )
 
 // Handler holds dependencies for air quality HTTP handlers.
@@ -28,9 +30,12 @@ func NewHandler(service *Service) *Handler {
 // @Produce json
 //
 // @Success 200 {object} CurrentResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /air-quality/current [get]
 func (h *Handler) GetCurrent(c *gin.Context) {
 	h.respondCurrent(c, nil, Scope{OwnerID: middleware.UserID(c)})
@@ -46,10 +51,12 @@ func (h *Handler) GetCurrent(c *gin.Context) {
 // @Param id path string true "Device id (UUID)"
 //
 // @Success 200 {object} CurrentResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices/{id}/current [get]
 func (h *Handler) GetDeviceCurrent(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -65,7 +72,9 @@ func (h *Handler) GetDeviceCurrent(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Device id (UUID)"
 // @Success 200 {object} CurrentResponse
-// @Failure 404 {object} ErrorResponse
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 // @Router /public/devices/{id}/current [get]
 func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -81,13 +90,17 @@ func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 // @Tags Public
 // @Produce json
 // @Success 200 {object} PublicMapResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 // @Router /public/map/devices [get]
 func (h *Handler) GetPublicMapDevices(c *gin.Context) {
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
 	devices, err := h.service.GetPublicMapDevices(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get public map devices"})
+		problem.Write(c, problem.Internal, "Failed to get public map devices.")
 		return
 	}
 	c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
@@ -96,29 +109,38 @@ func (h *Handler) GetPublicMapDevices(c *gin.Context) {
 
 // respondCurrent renders the current aggregate, optionally scoped to a device.
 func (h *Handler) respondCurrent(c *gin.Context, deviceID *uuid.UUID, scope Scope) {
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
 	current, err := h.service.GetCurrent(c.Request.Context(), deviceID, scope)
 	if err != nil {
-		if errors.Is(err, ErrNoData) || errors.Is(err, ErrDeviceNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "No readings received yet"})
+		if errors.Is(err, ErrDeviceNotFound) {
+			problem.Write(c, problem.NotFound, "Device not found.")
+			return
+		}
+		if errors.Is(err, ErrNoData) {
+			problem.Write(c, problem.NoReadings, "No readings received yet.")
 			return
 		}
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get current data"})
+		problem.Write(c, problem.Internal, "Failed to get current data.")
 		return
 	}
 
 	c.IndentedJSON(http.StatusOK, CurrentResponse{Data: *current})
 }
 
-// deviceIDParam parses the :id path param as a UUID, responding with 400 on
-// failure.
+type devicePath struct {
+	ID string `uri:"id" validate:"required,uuid4"`
+}
+
 func deviceIDParam(c *gin.Context) (uuid.UUID, bool) {
-	id, err := uuid.Parse(c.Param("id"))
+	params := devicePath{ID: c.Param("id")}
+	if !input.Validate(c, "path", &params) {
+		return uuid.Nil, false
+	}
+	id, err := uuid.Parse(params.ID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid device id",
-			Details: "id must be a UUID",
-		})
 		return uuid.Nil, false
 	}
 	return id, true
@@ -134,9 +156,11 @@ func deviceIDParam(c *gin.Context) (uuid.UUID, bool) {
 // @Param timeline query string true "Timeline" Enums(daily, weekly, monthly, yearly)
 //
 // @Success 200 {object} HistoricalResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /air-quality/historical [get]
 func (h *Handler) GetHistorical(c *gin.Context) {
 	h.respondHistorical(c, nil, Scope{OwnerID: middleware.UserID(c)})
@@ -153,9 +177,12 @@ func (h *Handler) GetHistorical(c *gin.Context) {
 // @Param timeline query string true "Timeline" Enums(daily, weekly, monthly, yearly)
 //
 // @Success 200 {object} HistoricalResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices/{id}/historical [get]
 func (h *Handler) GetDeviceHistorical(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -172,7 +199,9 @@ func (h *Handler) GetDeviceHistorical(c *gin.Context) {
 // @Param id path string true "Device id (UUID)"
 // @Param timeline query string true "Timeline" Enums(daily, weekly, monthly, yearly)
 // @Success 200 {object} HistoricalResponse
-// @Failure 404 {object} ErrorResponse
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 // @Router /public/devices/{id}/historical [get]
 func (h *Handler) GetPublicDeviceHistorical(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -184,24 +213,22 @@ func (h *Handler) GetPublicDeviceHistorical(c *gin.Context) {
 
 // respondHistorical renders the bucketed timeline, optionally scoped to a device.
 func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID, scope Scope) {
-	var query HistoricalQuery
-
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid query parameters",
-			Details: "timeline is required and must be one of: daily, weekly, monthly, yearly",
-		})
+	if !input.RejectUnknownQuery(c, "timeline") {
+		return
+	}
+	query := HistoricalQuery{Timeline: c.Query("timeline")}
+	if !input.Validate(c, "query", &query) {
 		return
 	}
 
 	data, err := h.service.GetHistorical(c.Request.Context(), query.Timeline, deviceID, scope)
 	if err != nil {
 		if errors.Is(err, ErrDeviceNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			problem.Write(c, problem.NotFound, "Device not found.")
 			return
 		}
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get historical data"})
+		problem.Write(c, problem.Internal, "Failed to get historical data.")
 		return
 	}
 
@@ -219,42 +246,42 @@ func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID, scope S
 // @Param end_date query string true "End date (YYYY-MM-DD)"
 //
 // @Success 200 {object} CustomRangeResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /air-quality/custom [get]
 func (h *Handler) GetCustomRange(c *gin.Context) {
-	var query CustomQuery
-
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid query parameters",
-			Details: "start_date and end_date are required (YYYY-MM-DD)",
-		})
+	if !input.RejectUnknownQuery(c, "start_date", "end_date") {
+		return
+	}
+	query := CustomQuery{StartDate: c.Query("start_date"), EndDate: c.Query("end_date")}
+	if !input.Validate(c, "query", &query) {
 		return
 	}
 
 	start, err := time.Parse("2006-01-02", query.StartDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid start_date format, use YYYY-MM-DD"})
+		problem.Write(c, problem.Validation, "One or more query parameters are invalid.", problem.Violation{In: "query", Name: "start_date", Code: "format", Detail: "start_date must use YYYY-MM-DD"})
 		return
 	}
 
 	end, err := time.Parse("2006-01-02", query.EndDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid end_date format, use YYYY-MM-DD"})
+		problem.Write(c, problem.Validation, "One or more query parameters are invalid.", problem.Violation{In: "query", Name: "end_date", Code: "format", Detail: "end_date must use YYYY-MM-DD"})
 		return
 	}
 
 	if end.Before(start) {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "end_date must be after start_date"})
+		problem.Write(c, problem.Validation, "One or more query parameters are invalid.", problem.Violation{In: "query", Name: "end_date", Code: "gte", Detail: "end_date must be on or after start_date"})
 		return
 	}
 
 	data, err := h.service.GetCustomRange(c.Request.Context(), start, end, Scope{OwnerID: middleware.UserID(c)})
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get custom range data"})
+		problem.Write(c, problem.Internal, "Failed to get custom range data.")
 		return
 	}
 

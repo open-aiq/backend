@@ -17,6 +17,11 @@ const docTemplate = `{
     "paths": {
         "/air-quality/current": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns sensor metrics averaged over the last hour, the device status (offline when nothing was received for 20 minutes), the last_seen timestamp, and the latest known location. 404 only when the device has never reported.",
                 "produces": [
                     "application/json"
@@ -32,16 +37,28 @@ const docTemplate = `{
                             "$ref": "#/definitions/airquality.CurrentResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -49,6 +66,11 @@ const docTemplate = `{
         },
         "/air-quality/custom": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns air quality data points between start_date and end_date",
                 "produces": [
                     "application/json"
@@ -80,16 +102,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/airquality.CustomRangeResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -97,6 +125,11 @@ const docTemplate = `{
         },
         "/air-quality/historical": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns historical air quality data aggregated by timeline",
                 "produces": [
                     "application/json"
@@ -127,16 +160,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/airquality.HistoricalResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -190,19 +229,37 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/devicereading.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/devicereading.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/devicereading.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -210,6 +267,11 @@ const docTemplate = `{
         },
         "/devices": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns all registered devices. Secret keys are never included.",
                 "produces": [
                     "application/json"
@@ -225,15 +287,32 @@ const docTemplate = `{
                             "$ref": "#/definitions/device.ListDevicesResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Registers a device and returns its credentials. The device_key is a secret shown only once here; store it securely.",
                 "consumes": [
                     "application/json"
@@ -266,13 +345,37 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -280,6 +383,11 @@ const docTemplate = `{
         },
         "/devices/{id}": {
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Permanently deletes a device by its id.",
                 "produces": [
                     "application/json"
@@ -301,27 +409,38 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Partially updates a device. Exact location can only be shared by a public device, and making a device private revokes location sharing.",
                 "consumes": [
                     "application/json"
@@ -361,19 +480,43 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -381,6 +524,11 @@ const docTemplate = `{
         },
         "/devices/{id}/current": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Same as /air-quality/current but restricted to a single device",
                 "produces": [
                     "application/json"
@@ -405,22 +553,28 @@ const docTemplate = `{
                             "$ref": "#/definitions/airquality.CurrentResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -428,6 +582,11 @@ const docTemplate = `{
         },
         "/devices/{id}/historical": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Same as /air-quality/historical but restricted to a single device",
                 "produces": [
                     "application/json"
@@ -465,16 +624,28 @@ const docTemplate = `{
                             "$ref": "#/definitions/airquality.HistoricalResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -482,6 +653,11 @@ const docTemplate = `{
         },
         "/devices/{id}/rotate-key": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Generates a new device_key for the device, invalidating the old one immediately. The new key is shown only in this response; update the physical device with it right away.",
                 "produces": [
                     "application/json"
@@ -506,22 +682,28 @@ const docTemplate = `{
                             "$ref": "#/definitions/device.RotateKeyResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -571,16 +753,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/device.PublicDeviceResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/device.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -614,7 +796,19 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -661,7 +855,19 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -684,10 +890,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/airquality.PublicMapResponse"
                         }
                     },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/airquality.ErrorResponse"
+                            "$ref": "#/definitions/problem.Problem"
                         }
                     }
                 }
@@ -794,19 +1006,6 @@ const docTemplate = `{
                 }
             }
         },
-        "airquality.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "details": {
-                    "type": "string",
-                    "example": "timeline is required"
-                },
-                "error": {
-                    "type": "string",
-                    "example": "Missing or invalid query parameters"
-                }
-            }
-        },
         "airquality.HistoricalResponse": {
             "type": "object",
             "properties": {
@@ -908,6 +1107,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "example": "Living Room Sensor"
                 }
             }
@@ -992,19 +1192,6 @@ const docTemplate = `{
                 }
             }
         },
-        "device.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "details": {
-                    "type": "string",
-                    "example": "name is required"
-                },
-                "error": {
-                    "type": "string",
-                    "example": "Invalid request body"
-                }
-            }
-        },
         "device.ListDevicesResponse": {
             "type": "object",
             "properties": {
@@ -1080,6 +1267,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
+                    "maxLength": 100,
                     "minLength": 1,
                     "example": "Balcony Sensor"
                 }
@@ -1090,19 +1278,6 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/device.Device"
-                }
-            }
-        },
-        "devicereading.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "details": {
-                    "type": "string",
-                    "example": "pms_data is required"
-                },
-                "error": {
-                    "type": "string",
-                    "example": "Invalid request body"
                 }
             }
         },
@@ -1128,6 +1303,7 @@ const docTemplate = `{
                 },
                 "provider": {
                     "type": "string",
+                    "maxLength": 50,
                     "example": "mobile"
                 }
             }
@@ -1158,6 +1334,7 @@ const docTemplate = `{
                 },
                 "provider": {
                     "type": "string",
+                    "maxLength": 50,
                     "example": "pms5003"
                 }
             }
@@ -1183,6 +1360,7 @@ const docTemplate = `{
                 },
                 "provider": {
                     "type": "string",
+                    "maxLength": 50,
                     "example": "dht22"
                 },
                 "temperature": {
@@ -1238,6 +1416,71 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "problem.Problem": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string",
+                    "example": "One or more request values are invalid."
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/problem.Violation"
+                    }
+                },
+                "instance": {
+                    "type": "string",
+                    "example": "/api/v1/devices"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Request validation failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "https://docs.air-iq.net/reference/errors/#validation-error"
+                }
+            }
+        },
+        "problem.Violation": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "required"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "name is required"
+                },
+                "in": {
+                    "type": "string",
+                    "enum": [
+                        "body",
+                        "query",
+                        "path"
+                    ],
+                    "example": "body"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "name"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Clerk session token using the Bearer scheme. Example: \"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

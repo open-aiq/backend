@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go-aiq-backend/internal/platform/input"
 	"go-aiq-backend/internal/platform/middleware"
+	"go-aiq-backend/internal/platform/problem"
 )
 
 // Handler holds dependencies for device HTTP handlers.
@@ -30,29 +32,33 @@ func NewHandler(service *Service) *Handler {
 // @Param request body CreateDeviceRequest true "Device to register"
 //
 // @Success 201 {object} CreateDeviceResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 400 {object} problem.Problem
+// @Failure 413 {object} problem.Problem
+// @Failure 415 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices [post]
 func (h *Handler) Create(c *gin.Context) {
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
 	var req CreateDeviceRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid request body",
-			Details: "name is required",
-		})
+	if !input.BindJSON(c, &req) {
 		return
 	}
 
 	created, err := h.service.Create(c.Request.Context(), middleware.UserID(c), req)
 	if err != nil {
 		if errors.Is(err, ErrLocationRequiresPublic) {
-			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Location sharing requires a public device"})
+			problem.Write(c, problem.Validation, "Location sharing requires a public device.", problem.Violation{In: "body", Name: "is_location_public", Code: "requires", Detail: "is_location_public requires is_public to be true"})
 			return
 		}
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create device"})
+		problem.Write(c, problem.Internal, "Failed to create device.")
 		return
 	}
 
@@ -67,14 +73,20 @@ func (h *Handler) Create(c *gin.Context) {
 // @Produce json
 //
 // @Success 200 {object} ListDevicesResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices [get]
 func (h *Handler) List(c *gin.Context) {
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
 	devices, err := h.service.List(c.Request.Context(), middleware.UserID(c))
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list devices"})
+		problem.Write(c, problem.Internal, "Failed to list devices.")
 		return
 	}
 
@@ -88,10 +100,13 @@ func (h *Handler) List(c *gin.Context) {
 // @Success 200 {object} ListPublicDevicesResponse
 // @Router /public/devices [get]
 func (h *Handler) ListPublic(c *gin.Context) {
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
 	devices, err := h.service.ListPublic(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list public devices"})
+		problem.Write(c, problem.Internal, "Failed to list public devices.")
 		return
 	}
 	c.IndentedJSON(http.StatusOK, ListPublicDevicesResponse{Data: devices})
@@ -103,23 +118,25 @@ func (h *Handler) ListPublic(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Device id (UUID)"
 // @Success 200 {object} PublicDeviceResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
+// @Failure 422 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
 // @Router /public/devices/{id} [get]
 func (h *Handler) GetPublic(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid device id", Details: "id must be a UUID"})
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
+	id, ok := deviceID(c)
+	if !ok {
 		return
 	}
 	publicDevice, err := h.service.GetPublic(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, ErrDeviceNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			problem.Write(c, problem.NotFound, "Device not found.")
 			return
 		}
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get public device"})
+		problem.Write(c, problem.Internal, "Failed to get public device.")
 		return
 	}
 	c.IndentedJSON(http.StatusOK, PublicDeviceResponse{Data: *publicDevice})
@@ -137,27 +154,27 @@ func (h *Handler) GetPublic(c *gin.Context) {
 // @Param request body UpdateDeviceRequest true "Fields to update"
 //
 // @Success 200 {object} UpdateDeviceResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 400 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
+// @Failure 413 {object} problem.Problem
+// @Failure 415 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices/{id} [patch]
 func (h *Handler) Update(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid device id",
-			Details: "id must be a UUID",
-		})
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
+	id, ok := deviceID(c)
+	if !ok {
 		return
 	}
 
 	var req UpdateDeviceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid request body",
-			Details: err.Error(),
-		})
+	if !input.BindJSON(c, &req) {
 		return
 	}
 
@@ -165,17 +182,14 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNoUpdateFields):
-			c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error:   "No fields to update",
-				Details: "provide at least one of: name, is_outdoor, is_public, is_location_public",
-			})
+			problem.Write(c, problem.Validation, "Provide at least one field to update.", problem.Violation{In: "body", Name: "request", Code: "required", Detail: "provide at least one of: name, is_outdoor, is_public, is_location_public"})
 		case errors.Is(err, ErrLocationRequiresPublic):
-			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Location sharing requires a public device"})
+			problem.Write(c, problem.Validation, "Location sharing requires a public device.", problem.Violation{In: "body", Name: "is_location_public", Code: "requires", Detail: "is_location_public requires is_public to be true"})
 		case errors.Is(err, ErrDeviceNotFound):
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			problem.Write(c, problem.NotFound, "Device not found.")
 		default:
 			_ = c.Error(err)
-			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update device"})
+			problem.Write(c, problem.Internal, "Failed to update device.")
 		}
 		return
 	}
@@ -193,29 +207,30 @@ func (h *Handler) Update(c *gin.Context) {
 // @Param id path string true "Device id (UUID)"
 //
 // @Success 200 {object} RotateKeyResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices/{id}/rotate-key [post]
 func (h *Handler) RotateKey(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid device id",
-			Details: "id must be a UUID",
-		})
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
+	id, ok := deviceID(c)
+	if !ok {
 		return
 	}
 
 	rotated, err := h.service.RotateKey(c.Request.Context(), middleware.UserID(c), id)
 	if err != nil {
 		if errors.Is(err, ErrDeviceNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			problem.Write(c, problem.NotFound, "Device not found.")
 			return
 		}
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to rotate device key"})
+		problem.Write(c, problem.Internal, "Failed to rotate device key.")
 		return
 	}
 
@@ -232,30 +247,48 @@ func (h *Handler) RotateKey(c *gin.Context) {
 // @Param id path string true "Device id (UUID)"
 //
 // @Success 204 "No Content"
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 401 {object} problem.Problem
+// @Failure 404 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
+// @Security BearerAuth
 // @Router /devices/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid device id",
-			Details: "id must be a UUID",
-		})
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
+	id, ok := deviceID(c)
+	if !ok {
 		return
 	}
 
 	if err := h.service.Delete(c.Request.Context(), middleware.UserID(c), id); err != nil {
 		if errors.Is(err, ErrDeviceNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Device not found"})
+			problem.Write(c, problem.NotFound, "Device not found.")
 			return
 		}
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete device"})
+		problem.Write(c, problem.Internal, "Failed to delete device.")
 		return
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+type devicePath struct {
+	ID string `uri:"id" validate:"required,uuid4"`
+}
+
+func deviceID(c *gin.Context) (uuid.UUID, bool) {
+	params := devicePath{ID: c.Param("id")}
+	if !input.Validate(c, "path", &params) {
+		return uuid.Nil, false
+	}
+	id, err := uuid.Parse(params.ID)
+	if err != nil {
+		problem.Write(c, problem.Validation, "One or more path parameters are invalid.", problem.Violation{In: "path", Name: "id", Code: "format", Detail: "id must be a UUIDv4"})
+		return uuid.Nil, false
+	}
+	return id, true
 }

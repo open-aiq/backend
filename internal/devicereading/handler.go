@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 
 	"go-aiq-backend/internal/device"
+	"go-aiq-backend/internal/platform/input"
+	"go-aiq-backend/internal/platform/problem"
 )
 
 // Header names a device authenticates with, and the context key the middleware
@@ -42,21 +44,18 @@ func (h *Handler) deviceAuth(c *gin.Context) {
 	deviceID := c.GetHeader(headerDeviceID)
 	deviceKey := c.GetHeader(headerDeviceKey)
 	if deviceID == "" || deviceKey == "" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "Missing device credentials",
-			Details: headerDeviceID + " and " + headerDeviceKey + " headers are required",
-		})
+		problem.Abort(c, problem.Unauthorized, headerDeviceID+" and "+headerDeviceKey+" headers are required.")
 		return
 	}
 
 	id, err := h.auth.Authenticate(c.Request.Context(), deviceID, deviceKey)
 	if err != nil {
 		if errors.Is(err, device.ErrInvalidCredentials) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid device credentials"})
+			problem.Abort(c, problem.Unauthorized, "Invalid device credentials.")
 			return
 		}
 		_ = c.Error(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to authenticate device"})
+		problem.Abort(c, problem.Internal, "Failed to authenticate device.")
 		return
 	}
 
@@ -77,18 +76,20 @@ func (h *Handler) deviceAuth(c *gin.Context) {
 // @Param request body UploadRequest true "Sensor reading"
 //
 // @Success 201 {object} UploadResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 401 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} problem.Problem
+// @Failure 401 {object} problem.Problem
+// @Failure 413 {object} problem.Problem
+// @Failure 415 {object} problem.Problem
+// @Failure 422 {object} problem.Problem
+// @Failure 500 {object} problem.Problem
 //
 // @Router /data [post]
 func (h *Handler) Upload(c *gin.Context) {
+	if !input.RejectUnknownQuery(c) {
+		return
+	}
 	var req UploadRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Invalid request body",
-			Details: err.Error(),
-		})
+	if !input.BindJSON(c, &req) {
 		return
 	}
 
@@ -97,7 +98,7 @@ func (h *Handler) Upload(c *gin.Context) {
 	created, err := h.service.Ingest(c.Request.Context(), deviceID, &req)
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to store reading"})
+		problem.Write(c, problem.Internal, "Failed to store reading.")
 		return
 	}
 

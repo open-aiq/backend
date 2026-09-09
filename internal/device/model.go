@@ -9,7 +9,7 @@ import (
 // CreateDeviceRequest is the payload for registering a new device. The
 // booleans default to false when omitted.
 type CreateDeviceRequest struct {
-	Name             string `json:"name" binding:"required" example:"Living Room Sensor"`
+	Name             string `json:"name" mod:"trim" validate:"required,max=100" example:"Living Room Sensor"`
 	IsOutdoor        bool   `json:"is_outdoor" example:"false"`
 	IsPublic         bool   `json:"is_public" example:"false"`
 	IsLocationPublic bool   `json:"is_location_public" example:"false"`
@@ -18,7 +18,7 @@ type CreateDeviceRequest struct {
 // UpdateDeviceRequest is the payload for partially updating a device. Only the
 // provided fields are changed.
 type UpdateDeviceRequest struct {
-	Name             *string `json:"name,omitempty" binding:"omitempty,min=1" example:"Balcony Sensor"`
+	Name             *string `json:"name,omitempty" mod:"trim" validate:"omitempty,min=1,max=100" example:"Balcony Sensor"`
 	IsOutdoor        *bool   `json:"is_outdoor,omitempty"`
 	IsPublic         *bool   `json:"is_public,omitempty"`
 	IsLocationPublic *bool   `json:"is_location_public,omitempty"`
@@ -86,9 +86,4 @@ type RotateKeyResponse struct {
 
 type UpdateDeviceResponse struct {
 	Data Device `json:"data"`
-}
-
-type ErrorResponse struct {
-	Error   string `json:"error" example:"Invalid request body"`
-	Details string `json:"details,omitempty" example:"name is required"`
 }

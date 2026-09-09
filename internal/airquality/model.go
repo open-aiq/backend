@@ -48,13 +48,13 @@ type DataPoint struct {
 
 // HistoricalQuery holds query parameters for the historical endpoint.
 type HistoricalQuery struct {
-	Timeline string `form:"timeline" binding:"required,oneof=daily weekly monthly yearly"`
+	Timeline string `form:"timeline" mod:"trim" validate:"required,oneof=daily weekly monthly yearly"`
 }
 
 // CustomQuery holds query parameters for the custom date range endpoint.
 type CustomQuery struct {
-	StartDate string `form:"start_date" binding:"required"`
-	EndDate   string `form:"end_date" binding:"required"`
+	StartDate string `form:"start_date" mod:"trim" validate:"required,datetime=2006-01-02"`
+	EndDate   string `form:"end_date" mod:"trim" validate:"required,datetime=2006-01-02"`
 }
 
 // Response types for swagger documentation
@@ -88,9 +88,4 @@ type PublicMapDevice struct {
 
 type PublicMapResponse struct {
 	Data []PublicMapDevice `json:"data"`
-}
-
-type ErrorResponse struct {
-	Error   string `json:"error" example:"Missing or invalid query parameters"`
-	Details string `json:"details,omitempty" example:"timeline is required"`
 }

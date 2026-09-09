@@ -65,15 +65,6 @@ definitions:
       timestamp:
         type: string
     type: object
-  airquality.ErrorResponse:
-    properties:
-      details:
-        example: timeline is required
-        type: string
-      error:
-        example: Missing or invalid query parameters
-        type: string
-    type: object
   airquality.HistoricalResponse:
     properties:
       data:
@@ -141,6 +132,7 @@ definitions:
         type: boolean
       name:
         example: Living Room Sensor
+        maxLength: 100
         type: string
     required:
     - name
@@ -201,15 +193,6 @@ definitions:
       updated_at:
         type: string
     type: object
-  device.ErrorResponse:
-    properties:
-      details:
-        example: name is required
-        type: string
-      error:
-        example: Invalid request body
-        type: string
-    type: object
   device.ListDevicesResponse:
     properties:
       data:
@@ -259,6 +242,7 @@ definitions:
         type: boolean
       name:
         example: Balcony Sensor
+        maxLength: 100
         minLength: 1
         type: string
     type: object
@@ -266,15 +250,6 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/device.Device'
-    type: object
-  devicereading.ErrorResponse:
-    properties:
-      details:
-        example: pms_data is required
-        type: string
-      error:
-        example: Invalid request body
-        type: string
     type: object
   devicereading.Location:
     properties:
@@ -290,6 +265,7 @@ definitions:
         type: number
       provider:
         example: mobile
+        maxLength: 50
         type: string
     required:
     - lat
@@ -312,6 +288,7 @@ definitions:
         type: number
       provider:
         example: pms5003
+        maxLength: 50
         type: string
     required:
     - pm10_0
@@ -331,6 +308,7 @@ definitions:
         type: number
       provider:
         example: dht22
+        maxLength: 50
         type: string
       temperature:
         example: 31.2
@@ -373,6 +351,47 @@ definitions:
       id:
         type: integer
     type: object
+  problem.Problem:
+    properties:
+      detail:
+        example: One or more request values are invalid.
+        type: string
+      errors:
+        items:
+          $ref: '#/definitions/problem.Violation'
+        type: array
+      instance:
+        example: /api/v1/devices
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Request validation failed
+        type: string
+      type:
+        example: https://docs.air-iq.net/reference/errors/#validation-error
+        type: string
+    type: object
+  problem.Violation:
+    properties:
+      code:
+        example: required
+        type: string
+      detail:
+        example: name is required
+        type: string
+      in:
+        enum:
+        - body
+        - query
+        - path
+        example: body
+        type: string
+      name:
+        example: name
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -392,14 +411,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.CurrentResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Get current air quality
       tags:
       - Air Quality
@@ -424,14 +453,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.CustomRangeResponse'
-        "400":
-          description: Bad Request
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Get air quality data for a custom date range
       tags:
       - Air Quality
@@ -456,14 +491,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.HistoricalResponse'
-        "400":
-          description: Bad Request
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Get historical air quality data
       tags:
       - Air Quality
@@ -501,15 +542,27 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/devicereading.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/devicereading.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/devicereading.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
       summary: Upload a sensor reading
       tags:
       - Device Data
@@ -523,10 +576,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/device.ListDevicesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: List all devices
       tags:
       - Devices
@@ -552,11 +615,29 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Register a new device
       tags:
       - Devices
@@ -574,18 +655,24 @@ paths:
       responses:
         "204":
           description: No Content
-        "400":
-          description: Bad Request
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Delete a device
       tags:
       - Devices
@@ -616,15 +703,33 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Update a device
       tags:
       - Devices
@@ -644,18 +749,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.CurrentResponse'
-        "400":
-          description: Bad Request
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Get current air quality for one device
       tags:
       - Air Quality
@@ -685,14 +796,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.HistoricalResponse'
-        "400":
-          description: Bad Request
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Get historical air quality data for one device
       tags:
       - Air Quality
@@ -714,18 +835,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/device.RotateKeyResponse'
-        "400":
-          description: Bad Request
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
       summary: Rotate a device's secret key
       tags:
       - Devices
@@ -756,14 +883,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/device.PublicDeviceResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/device.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/device.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
       summary: Get a public device
       tags:
       - Public
@@ -785,7 +912,15 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/problem.Problem'
       summary: Get current readings for a public device
       tags:
       - Public
@@ -817,7 +952,15 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/problem.Problem'
       summary: Get historical readings for a public device
       tags:
       - Public
@@ -832,11 +975,21 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/airquality.PublicMapResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/airquality.ErrorResponse'
+            $ref: '#/definitions/problem.Problem'
       summary: List public devices for the community map
       tags:
       - Public
+securityDefinitions:
+  BearerAuth:
+    description: 'Clerk session token using the Bearer scheme. Example: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
