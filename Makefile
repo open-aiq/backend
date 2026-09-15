@@ -48,10 +48,18 @@ build-clean:
 orm-gen:
 	go generate ./internal/platform/ent
 
-## migration-gen: Generate a versioned migration from schema changes — usage: make migration name=<description> (needs Docker)
+## migration-gen: Generate a versioned migration from schema changes. usage: make migration-gen name=<description>
+# Atlas's docker:// driver always invokes a binary named "docker". The target
+# creates a temporary PATH entry with that name pointing to ENGINE (Podman by
+# default), then removes it when migration generation finishes.
 migration-gen:
-	@test -n "$(name)" || { echo "usage: make migration name=<description>"; exit 1; }
-	atlas migrate diff "$(name)" --env defaultConfig
+	@test -n "$(name)" || { echo "usage: make migration-gen name=<description>"; exit 1; }
+	@command -v "$(ENGINE)" >/dev/null || { echo "container engine '$(ENGINE)' is not installed"; exit 1; }
+	@set -eu; \
+		cli_dir="$$(mktemp -d)"; \
+		trap 'rm -rf "$$cli_dir"' EXIT; \
+		ln -s "$$(command -v "$(ENGINE)")" "$$cli_dir/docker"; \
+		PATH="$$cli_dir:$$PATH" atlas migrate diff "$(name)" --env defaultConfig
 
 ## migration-apply: Apply all pending migrations to DATABASE_URL
 migration-apply: require-database-url
@@ -177,7 +185,7 @@ db-shell: require-database-url
 	@$(ENGINE) exec -it $(CONTAINER) psql -d "$(DATABASE_URL)"
 
 
-##.    
+##.
 ## release: Bump version (prompts major/minor/patch), build artifacts, tag, and publish a GitHub release
 release:
 	@RELEASE_BRANCH="$(RELEASE_BRANCH)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \

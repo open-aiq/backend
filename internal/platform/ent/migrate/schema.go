@@ -67,7 +67,7 @@ var (
 				Symbol:     "device_readings_devices_readings",
 				Columns:    []*schema.Column{DeviceReadingsColumns[14]},
 				RefColumns: []*schema.Column{DevicesColumns[0]},
-				OnDelete:   schema.NoAction,
+				OnDelete:   schema.Cascade,
 			},
 		},
 		Indexes: []*schema.Index{
