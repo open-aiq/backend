@@ -186,7 +186,7 @@ db-shell: require-database-url
 
 
 ##.
-## release: Bump version (prompts major/minor/patch), build artifacts, tag, and publish a GitHub release
+## release: Build, tag, and publish — make release [version=major|minor|patch|1.2.3|1.2.3-rc.1]
 release:
-	@RELEASE_BRANCH="$(RELEASE_BRANCH)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \
+	@RELEASE_BRANCH="$(RELEASE_BRANCH)" RELEASE_VERSION="$(version)" DIST="$(DIST)" BINARY="$(BINARY)" PLATFORMS="$(PLATFORMS)" \
 		bash scripts/release.sh

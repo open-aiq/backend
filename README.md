@@ -99,14 +99,16 @@ release from `main`.
 make release
 ```
 
-This prompts for the bump type (**major/minor/patch**), computes the next version
-from the latest tag, and — after you confirm — builds version-stamped binaries for
+This prompts for a bump type (**major/minor/patch**) or an exact semantic
+version, computes the next version from the latest tag, and — after you confirm — builds version-stamped binaries for
 `linux/amd64`, `linux/arm64`, and `darwin/arm64`, assembles a deploy bundle plus the
 OpenAPI spec and `SHA256SUMS`, tags the commit, and publishes a GitHub release with
 auto-generated notes and the artifacts attached.
 
 It runs locally and requires an authenticated [`gh`](https://cli.github.com) CLI.
 The logic lives in [`scripts/release.sh`](scripts/release.sh).
+To bypass the version prompt, run `make release version=1.4.0`. A leading `v` and prerelease
+suffixes such as `1.4.0-rc.1` are accepted.
 
 ## API Documentation
 
