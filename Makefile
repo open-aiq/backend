@@ -107,7 +107,7 @@ db-up: require-database-url
 	  --shm-size=256m \
 	  --health-cmd="pg_isready -U $$user -d $$db" \
 	  --health-interval=10s --health-timeout=5s --health-retries=5 \
-	  postgres:$(DB_VERION); \
+	  postgres:$(DB_VERION)-alpine; \
 	echo "Waiting for $(CONTAINER) to become healthy..."; \
 	attempt=0; \
 	while :; do \
