@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"go-aiq-backend/internal/platform/ent"
+	"go-aiq-backend/internal/platform/middleware"
 )
 
 // ErrDeviceNotFound is returned when an operation targets a device that does not exist.
@@ -20,8 +21,9 @@ var ErrDeviceNotFound = errors.New("device not found")
 
 // ErrInvalidCredentials is returned when a device_id/device_key pair does not
 // authenticate. It deliberately covers both "unknown device" and "wrong key" so
-// device ids cannot be probed.
-var ErrInvalidCredentials = errors.New("invalid device credentials")
+// device ids cannot be probed. It is the middleware's sentinel so DeviceAuth
+// can recognize it without importing this package.
+var ErrInvalidCredentials = middleware.ErrInvalidDeviceCredentials
 
 const (
 	// deviceIDPrefix namespaces the public device identifier.
@@ -162,6 +164,7 @@ func (s *Service) Authenticate(ctx context.Context, deviceID, deviceKey string) 
 
 // AuthenticateDevice authenticates a device (see Authenticate) and records the
 // firmware version it reported when that changed. An empty version is ignored.
+// Implements middleware.DeviceAuthenticator.
 func (s *Service) AuthenticateDevice(ctx context.Context, deviceID, deviceKey, firmwareVersion string) (uuid.UUID, error) {
 	d, err := s.authenticate(ctx, deviceID, deviceKey)
 	if err != nil {

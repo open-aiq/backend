@@ -531,6 +531,10 @@ paths:
         name: X-Device-Key
         required: true
         type: string
+      - description: Firmware version running on the device, e.g. 0.2.0
+        in: header
+        name: X-Firmware-Version
+        type: string
       - description: Sensor reading
         in: body
         name: request
