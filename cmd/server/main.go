@@ -83,6 +83,7 @@ func main() {
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
+	middleware.UseSlogForGinDebug(logger)
 	r := gin.New()
 	r.HandleMethodNotAllowed = true
 	r.Use(middleware.RequestLogger(logger), gin.CustomRecovery(func(c *gin.Context, recovered any) {
