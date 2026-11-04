@@ -20,6 +20,18 @@ func (f DeviceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceMutation", m)
 }
 
+// The DeviceLogFunc type is an adapter to allow the use of ordinary
+// function as DeviceLog mutator.
+type DeviceLogFunc func(context.Context, *ent.DeviceLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DeviceLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DeviceLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceLogMutation", m)
+}
+
 // The DeviceReadingFunc type is an adapter to allow the use of ordinary
 // function as DeviceReading mutator.
 type DeviceReadingFunc func(context.Context, *ent.DeviceReadingMutation) (ent.Value, error)

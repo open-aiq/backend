@@ -49,9 +49,11 @@ type Device struct {
 type DeviceEdges struct {
 	// Readings holds the value of the readings edge.
 	Readings []*DeviceReading `json:"readings,omitempty"`
+	// Logs holds the value of the logs edge.
+	Logs []*DeviceLog `json:"logs,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // ReadingsOrErr returns the Readings value or an error if the edge
@@ -61,6 +63,15 @@ func (e DeviceEdges) ReadingsOrErr() ([]*DeviceReading, error) {
 		return e.Readings, nil
 	}
 	return nil, &NotLoadedError{edge: "readings"}
+}
+
+// LogsOrErr returns the Logs value or an error if the edge
+// was not loaded in eager-loading.
+func (e DeviceEdges) LogsOrErr() ([]*DeviceLog, error) {
+	if e.loadedTypes[1] {
+		return e.Logs, nil
+	}
+	return nil, &NotLoadedError{edge: "logs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -175,6 +186,11 @@ func (_m *Device) Value(name string) (ent.Value, error) {
 // QueryReadings queries the "readings" edge of the Device entity.
 func (_m *Device) QueryReadings() *DeviceReadingQuery {
 	return NewDeviceClient(_m.config).QueryReadings(_m)
+}
+
+// QueryLogs queries the "logs" edge of the Device entity.
+func (_m *Device) QueryLogs() *DeviceLogQuery {
+	return NewDeviceClient(_m.config).QueryLogs(_m)
 }
 
 // Update returns a builder for updating this Device.

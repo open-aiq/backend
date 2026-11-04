@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"time"
@@ -161,6 +162,21 @@ func (_u *DeviceUpdate) AddReadings(v ...*DeviceReading) *DeviceUpdate {
 	return _u.AddReadingIDs(ids...)
 }
 
+// AddLogIDs adds the "logs" edge to the DeviceLog entity by IDs.
+func (_u *DeviceUpdate) AddLogIDs(ids ...int64) *DeviceUpdate {
+	_u.mutation.AddLogIDs(ids...)
+	return _u
+}
+
+// AddLogs adds the "logs" edges to the DeviceLog entity.
+func (_u *DeviceUpdate) AddLogs(v ...*DeviceLog) *DeviceUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLogIDs(ids...)
+}
+
 // Mutation returns the DeviceMutation object of the builder.
 func (_u *DeviceUpdate) Mutation() *DeviceMutation {
 	return _u.mutation
@@ -185,6 +201,27 @@ func (_u *DeviceUpdate) RemoveReadings(v ...*DeviceReading) *DeviceUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveReadingIDs(ids...)
+}
+
+// ClearLogs clears all "logs" edges to the DeviceLog entity.
+func (_u *DeviceUpdate) ClearLogs() *DeviceUpdate {
+	_u.mutation.ClearLogs()
+	return _u
+}
+
+// RemoveLogIDs removes the "logs" edge to DeviceLog entities by IDs.
+func (_u *DeviceUpdate) RemoveLogIDs(ids ...int64) *DeviceUpdate {
+	_u.mutation.RemoveLogIDs(ids...)
+	return _u
+}
+
+// RemoveLogs removes "logs" edges to DeviceLog entities.
+func (_u *DeviceUpdate) RemoveLogs(v ...*DeviceLog) *DeviceUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLogIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -329,6 +366,51 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLogsIDs(); len(nodes) > 0 && !_u.mutation.LogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -489,6 +571,21 @@ func (_u *DeviceUpdateOne) AddReadings(v ...*DeviceReading) *DeviceUpdateOne {
 	return _u.AddReadingIDs(ids...)
 }
 
+// AddLogIDs adds the "logs" edge to the DeviceLog entity by IDs.
+func (_u *DeviceUpdateOne) AddLogIDs(ids ...int64) *DeviceUpdateOne {
+	_u.mutation.AddLogIDs(ids...)
+	return _u
+}
+
+// AddLogs adds the "logs" edges to the DeviceLog entity.
+func (_u *DeviceUpdateOne) AddLogs(v ...*DeviceLog) *DeviceUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLogIDs(ids...)
+}
+
 // Mutation returns the DeviceMutation object of the builder.
 func (_u *DeviceUpdateOne) Mutation() *DeviceMutation {
 	return _u.mutation
@@ -513,6 +610,27 @@ func (_u *DeviceUpdateOne) RemoveReadings(v ...*DeviceReading) *DeviceUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveReadingIDs(ids...)
+}
+
+// ClearLogs clears all "logs" edges to the DeviceLog entity.
+func (_u *DeviceUpdateOne) ClearLogs() *DeviceUpdateOne {
+	_u.mutation.ClearLogs()
+	return _u
+}
+
+// RemoveLogIDs removes the "logs" edge to DeviceLog entities by IDs.
+func (_u *DeviceUpdateOne) RemoveLogIDs(ids ...int64) *DeviceUpdateOne {
+	_u.mutation.RemoveLogIDs(ids...)
+	return _u
+}
+
+// RemoveLogs removes "logs" edges to DeviceLog entities.
+func (_u *DeviceUpdateOne) RemoveLogs(v ...*DeviceLog) *DeviceUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLogIDs(ids...)
 }
 
 // Where appends a list predicates to the DeviceUpdate builder.
@@ -687,6 +805,51 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLogsIDs(); len(nodes) > 0 && !_u.mutation.LogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

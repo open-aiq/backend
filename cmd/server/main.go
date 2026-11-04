@@ -18,6 +18,7 @@ import (
 	"go-aiq-backend/docs"
 	"go-aiq-backend/internal/airquality"
 	"go-aiq-backend/internal/device"
+	"go-aiq-backend/internal/devicelog"
 	"go-aiq-backend/internal/devicereading"
 	"go-aiq-backend/internal/platform/config"
 	"go-aiq-backend/internal/platform/database"
@@ -72,6 +73,15 @@ func main() {
 		deviceService,
 	)
 
+	// Wire up device log ingestion and its retention job.
+	logService := devicelog.NewService(devicelog.NewEntRepository(client))
+	logHandler := devicelog.NewHandler(logService)
+	retentionCtx, stopRetention := context.WithCancel(context.Background())
+	defer stopRetention()
+	go logService.RunRetention(retentionCtx, 6*time.Hour, func(err error) {
+		logger.Error("device log retention failed", "error", err)
+	})
+
 	// Serve Swagger with a relative host so "Try it out" targets whatever
 	// origin served the docs (localhost in dev, the real domain in prod, or
 	// behind a reverse proxy) instead of the baked-in @host. Leaving Host and
@@ -103,9 +113,11 @@ func main() {
 	authenticated.Use(middleware.ClerkAuth(cfg.ClerkSecretKey, cfg.ClerkAuthorizedParties, cfg.ClerkAllowNativeClients))
 	handler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterRoutes(authenticated)
+	logHandler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterPublicRoutes(api)
 	handler.RegisterPublicRoutes(api)
 	readingHandler.RegisterRoutes(api)
+	logHandler.RegisterDeviceRoutes(api, deviceService)
 
 	srv := &http.Server{
 		Addr:    cfg.Addr(),

@@ -12,6 +12,7 @@ import (
 	"go-aiq-backend/internal/platform/ent/migrate"
 
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 
 	"entgo.io/ent"
@@ -28,6 +29,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// Device is the client for interacting with the Device builders.
 	Device *DeviceClient
+	// DeviceLog is the client for interacting with the DeviceLog builders.
+	DeviceLog *DeviceLogClient
 	// DeviceReading is the client for interacting with the DeviceReading builders.
 	DeviceReading *DeviceReadingClient
 }
@@ -42,6 +45,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Device = NewDeviceClient(c.config)
+	c.DeviceLog = NewDeviceLogClient(c.config)
 	c.DeviceReading = NewDeviceReadingClient(c.config)
 }
 
@@ -136,6 +140,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:           ctx,
 		config:        cfg,
 		Device:        NewDeviceClient(cfg),
+		DeviceLog:     NewDeviceLogClient(cfg),
 		DeviceReading: NewDeviceReadingClient(cfg),
 	}, nil
 }
@@ -157,6 +162,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:           ctx,
 		config:        cfg,
 		Device:        NewDeviceClient(cfg),
+		DeviceLog:     NewDeviceLogClient(cfg),
 		DeviceReading: NewDeviceReadingClient(cfg),
 	}, nil
 }
@@ -187,6 +193,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.Device.Use(hooks...)
+	c.DeviceLog.Use(hooks...)
 	c.DeviceReading.Use(hooks...)
 }
 
@@ -194,6 +201,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Device.Intercept(interceptors...)
+	c.DeviceLog.Intercept(interceptors...)
 	c.DeviceReading.Intercept(interceptors...)
 }
 
@@ -202,6 +210,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *DeviceMutation:
 		return c.Device.mutate(ctx, m)
+	case *DeviceLogMutation:
+		return c.DeviceLog.mutate(ctx, m)
 	case *DeviceReadingMutation:
 		return c.DeviceReading.mutate(ctx, m)
 	default:
@@ -333,6 +343,22 @@ func (c *DeviceClient) QueryReadings(_m *Device) *DeviceReadingQuery {
 	return query
 }
 
+// QueryLogs queries the logs edge of a Device.
+func (c *DeviceClient) QueryLogs(_m *Device) *DeviceLogQuery {
+	query := (&DeviceLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(device.Table, device.FieldID, id),
+			sqlgraph.To(devicelog.Table, devicelog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, device.LogsTable, device.LogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *DeviceClient) Hooks() []Hook {
 	return c.hooks.Device
@@ -355,6 +381,155 @@ func (c *DeviceClient) mutate(ctx context.Context, m *DeviceMutation) (Value, er
 		return (&DeviceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Device mutation op: %q", m.Op())
+	}
+}
+
+// DeviceLogClient is a client for the DeviceLog schema.
+type DeviceLogClient struct {
+	config
+}
+
+// NewDeviceLogClient returns a client for the DeviceLog from the given config.
+func NewDeviceLogClient(c config) *DeviceLogClient {
+	return &DeviceLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `devicelog.Hooks(f(g(h())))`.
+func (c *DeviceLogClient) Use(hooks ...Hook) {
+	c.hooks.DeviceLog = append(c.hooks.DeviceLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `devicelog.Intercept(f(g(h())))`.
+func (c *DeviceLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeviceLog = append(c.inters.DeviceLog, interceptors...)
+}
+
+// Create returns a builder for creating a DeviceLog entity.
+func (c *DeviceLogClient) Create() *DeviceLogCreate {
+	mutation := newDeviceLogMutation(c.config, OpCreate)
+	return &DeviceLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeviceLog entities.
+func (c *DeviceLogClient) CreateBulk(builders ...*DeviceLogCreate) *DeviceLogCreateBulk {
+	return &DeviceLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeviceLogClient) MapCreateBulk(slice any, setFunc func(*DeviceLogCreate, int)) *DeviceLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeviceLogCreateBulk{err: fmt.Errorf("calling to DeviceLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeviceLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeviceLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeviceLog.
+func (c *DeviceLogClient) Update() *DeviceLogUpdate {
+	mutation := newDeviceLogMutation(c.config, OpUpdate)
+	return &DeviceLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeviceLogClient) UpdateOne(_m *DeviceLog) *DeviceLogUpdateOne {
+	mutation := newDeviceLogMutation(c.config, OpUpdateOne, withDeviceLog(_m))
+	return &DeviceLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeviceLogClient) UpdateOneID(id int64) *DeviceLogUpdateOne {
+	mutation := newDeviceLogMutation(c.config, OpUpdateOne, withDeviceLogID(id))
+	return &DeviceLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeviceLog.
+func (c *DeviceLogClient) Delete() *DeviceLogDelete {
+	mutation := newDeviceLogMutation(c.config, OpDelete)
+	return &DeviceLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeviceLogClient) DeleteOne(_m *DeviceLog) *DeviceLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeviceLogClient) DeleteOneID(id int64) *DeviceLogDeleteOne {
+	builder := c.Delete().Where(devicelog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeviceLogDeleteOne{builder}
+}
+
+// Query returns a query builder for DeviceLog.
+func (c *DeviceLogClient) Query() *DeviceLogQuery {
+	return &DeviceLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeviceLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeviceLog entity by its id.
+func (c *DeviceLogClient) Get(ctx context.Context, id int64) (*DeviceLog, error) {
+	return c.Query().Where(devicelog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeviceLogClient) GetX(ctx context.Context, id int64) *DeviceLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryDevice queries the device edge of a DeviceLog.
+func (c *DeviceLogClient) QueryDevice(_m *DeviceLog) *DeviceQuery {
+	query := (&DeviceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(devicelog.Table, devicelog.FieldID, id),
+			sqlgraph.To(device.Table, device.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, devicelog.DeviceTable, devicelog.DeviceColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DeviceLogClient) Hooks() []Hook {
+	return c.hooks.DeviceLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeviceLogClient) Interceptors() []Interceptor {
+	return c.inters.DeviceLog
+}
+
+func (c *DeviceLogClient) mutate(ctx context.Context, m *DeviceLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeviceLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeviceLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeviceLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeviceLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeviceLog mutation op: %q", m.Op())
 	}
 }
 
@@ -510,9 +685,9 @@ func (c *DeviceReadingClient) mutate(ctx context.Context, m *DeviceReadingMutati
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Device, DeviceReading []ent.Hook
+		Device, DeviceLog, DeviceReading []ent.Hook
 	}
 	inters struct {
-		Device, DeviceReading []ent.Interceptor
+		Device, DeviceLog, DeviceReading []ent.Interceptor
 	}
 )

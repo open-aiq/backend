@@ -37,6 +37,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeReadings holds the string denoting the readings edge name in mutations.
 	EdgeReadings = "readings"
+	// EdgeLogs holds the string denoting the logs edge name in mutations.
+	EdgeLogs = "logs"
 	// Table holds the table name of the device in the database.
 	Table = "devices"
 	// ReadingsTable is the table that holds the readings relation/edge.
@@ -46,6 +48,13 @@ const (
 	ReadingsInverseTable = "device_readings"
 	// ReadingsColumn is the table column denoting the readings relation/edge.
 	ReadingsColumn = "device_id"
+	// LogsTable is the table that holds the logs relation/edge.
+	LogsTable = "device_logs"
+	// LogsInverseTable is the table name for the DeviceLog entity.
+	// It exists in this package in order to avoid circular dependency with the "devicelog" package.
+	LogsInverseTable = "device_logs"
+	// LogsColumn is the table column denoting the logs relation/edge.
+	LogsColumn = "device_id"
 )
 
 // Columns holds all SQL columns for device fields.
@@ -169,10 +178,31 @@ func ByReadings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newReadingsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByLogsCount orders the results by logs count.
+func ByLogsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLogsStep(), opts...)
+	}
+}
+
+// ByLogs orders the results by logs terms.
+func ByLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newReadingsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ReadingsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ReadingsTable, ReadingsColumn),
+	)
+}
+func newLogsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LogsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LogsTable, LogsColumn),
 	)
 }

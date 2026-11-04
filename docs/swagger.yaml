@@ -256,6 +256,100 @@ definitions:
       data:
         $ref: '#/definitions/device.Device'
     type: object
+  devicelog.Entry:
+    properties:
+      boot_count:
+        example: 12
+        minimum: 0
+        type: integer
+      level:
+        enum:
+        - debug
+        - info
+        - warn
+        - error
+        example: warn
+        type: string
+      message:
+        example: 'reconnect failed: timeout'
+        maxLength: 256
+        type: string
+      tag:
+        example: wifi
+        maxLength: 32
+        type: string
+      ts:
+        description: Ts is the device's Unix time in seconds, omitted until its clock
+          is synced.
+        example: 1793700000
+        type: integer
+      uptime_ms:
+        example: 183000
+        minimum: 0
+        type: integer
+    required:
+    - boot_count
+    - level
+    - message
+    - uptime_ms
+    type: object
+  devicelog.ListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/devicelog.Log'
+        type: array
+      next_before:
+        description: NextBefore is the cursor for the next (older) page, or null at
+          the end.
+        type: integer
+    type: object
+  devicelog.Log:
+    properties:
+      boot_count:
+        type: integer
+      created_at:
+        type: string
+      device_ts:
+        type: string
+      id:
+        type: integer
+      level:
+        example: warn
+        type: string
+      message:
+        type: string
+      tag:
+        example: wifi
+        type: string
+      uptime_ms:
+        type: integer
+    type: object
+  devicelog.UploadRequest:
+    properties:
+      dropped:
+        description: Dropped counts entries the device discarded because its buffer
+          was full.
+        example: 0
+        minimum: 0
+        type: integer
+      entries:
+        items:
+          $ref: '#/definitions/devicelog.Entry'
+        maxItems: 50
+        type: array
+    type: object
+  devicelog.UploadResponse:
+    properties:
+      data:
+        $ref: '#/definitions/devicelog.UploadResult'
+    type: object
+  devicelog.UploadResult:
+    properties:
+      accepted:
+        example: 12
+        type: integer
+    type: object
   devicereading.Location:
     properties:
       lat:
@@ -575,6 +669,64 @@ paths:
       summary: Upload a sensor reading
       tags:
       - Device Data
+  /device/logs:
+    post:
+      consumes:
+      - application/json
+      description: Stores up to 50 important log entries (warnings, errors, boot,
+        WiFi, OTA events) from the calling device. Limited to 20 uploads per device
+        per hour.
+      parameters:
+      - description: Public device id (dev_...)
+        in: header
+        name: X-Device-ID
+        required: true
+        type: string
+      - description: Secret device key (sk_...)
+        in: header
+        name: X-Device-Key
+        required: true
+        type: string
+      - description: Log batch
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/devicelog.UploadRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/devicelog.UploadResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/problem.Problem'
+      summary: Upload device log entries (device)
+      tags:
+      - Device Data
   /devices:
     get:
       description: Returns all registered devices. Secret keys are never included.
@@ -826,6 +978,61 @@ paths:
       summary: Get historical air quality data for one device
       tags:
       - Air Quality
+  /devices/{id}/logs:
+    get:
+      description: Returns the device's log entries, newest first. level is the minimum
+        level (warn returns warn and error). Page with next_before.
+      parameters:
+      - description: Device id (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Minimum level
+        enum:
+        - debug
+        - info
+        - warn
+        - error
+        in: query
+        name: level
+        type: string
+      - description: Page size (1-200, default 50)
+        in: query
+        name: limit
+        type: integer
+      - description: Return entries older than this id (from next_before)
+        in: query
+        name: before
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/devicelog.ListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
+      summary: List a device's logs
+      tags:
+      - Devices
   /devices/{id}/rotate-key:
     post:
       description: Generates a new device_key for the device, invalidating the old
