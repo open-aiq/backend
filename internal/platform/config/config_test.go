@@ -13,6 +13,7 @@ func validEnvironment() []string {
 		"CORS_ALLOWED_ORIGINS= http://localhost:5173 , https://openaiq.org ",
 		"CLERK_SECRET_KEY= secret ",
 		"CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://openaiq.org",
+		"CLERK_ALLOW_NATIVE_CLIENTS=true",
 		"DB_MAX_OPEN_CONNS=25", "DB_MAX_IDLE_CONNS=5", "DB_CONN_MAX_LIFETIME=5m",
 	}
 }
@@ -45,6 +46,7 @@ func TestParseRejectsInvalidConfiguration(t *testing.T) {
 		"invalid postgres scheme": func(env []string) []string { return replace(env, "DATABASE_URL", "mysql://localhost/db") },
 		"wildcard with origin":    func(env []string) []string { return replace(env, "CORS_ALLOWED_ORIGINS", "*,https://openaiq.org") },
 		"idle exceeds open":       func(env []string) []string { return replace(env, "DB_MAX_IDLE_CONNS", "26") },
+		"invalid native flag":     func(env []string) []string { return replace(env, "CLERK_ALLOW_NATIVE_CLIENTS", "maybe") },
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
