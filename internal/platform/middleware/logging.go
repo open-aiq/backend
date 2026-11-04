@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,5 +46,23 @@ func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
 		default:
 			logger.Info("request completed", attrs...)
 		}
+	}
+}
+
+// UseSlogForGinDebug sends Gin's own debug output (route registrations and
+// debug-mode warnings), which Gin otherwise prints as plain text to stdout,
+// through logger so every server log line is structured. Gin only produces
+// this output in debug mode, i.e. outside production.
+func UseSlogForGinDebug(logger *slog.Logger) {
+	gin.DebugPrintRouteFunc = func(method, path, handler string, handlers int) {
+		logger.Debug("route registered", "component", "gin", "method", method, "path", path, "handler", handler, "handlers", handlers)
+	}
+	gin.DebugPrintFunc = func(format string, values ...any) {
+		msg := strings.TrimSpace(fmt.Sprintf(format, values...))
+		if warning, ok := strings.CutPrefix(msg, "[WARNING] "); ok {
+			logger.Warn(warning, "component", "gin")
+			return
+		}
+		logger.Debug(msg, "component", "gin")
 	}
 }

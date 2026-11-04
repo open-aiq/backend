@@ -46,3 +46,32 @@ func TestRequestLoggerIncludesHandlerErrorWithoutSensitiveHeaders(t *testing.T) 
 		}
 	}
 }
+
+func TestUseSlogForGinDebugWritesRoutesAndWarningsAsJSON(t *testing.T) {
+	routeFunc, printFunc := gin.DebugPrintRouteFunc, gin.DebugPrintFunc
+	t.Cleanup(func() {
+		gin.DebugPrintRouteFunc, gin.DebugPrintFunc = routeFunc, printFunc
+		gin.SetMode(gin.TestMode)
+	})
+
+	var output bytes.Buffer
+	UseSlogForGinDebug(slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	gin.SetMode(gin.DebugMode)
+	router := gin.New()
+	router.GET("/ping", func(c *gin.Context) {})
+
+	lines := strings.Split(strings.TrimSpace(output.String()), "\n")
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "{") {
+			t.Fatalf("gin debug output is not JSON: %q", line)
+		}
+	}
+	for _, want := range []string{
+		`"level":"WARN","msg":"Running in \"debug\" mode.`,
+		`"msg":"route registered","component":"gin","method":"GET","path":"/ping"`,
+	} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("log output %q does not contain %q", output.String(), want)
+		}
+	}
+}
