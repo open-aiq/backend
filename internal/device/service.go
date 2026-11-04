@@ -34,14 +34,26 @@ const (
 	deviceKeyBytes = 32
 )
 
+// OtaSummarizer reports the firmware-update state of devices for listings.
+// Implemented by firmware.Service; optional.
+type OtaSummarizer interface {
+	SummarizeOta(ctx context.Context, devices []*ent.Device) (map[uuid.UUID]OtaSummary, error)
+}
+
 // Service handles device business logic.
 type Service struct {
 	repo Repository
+	ota  OtaSummarizer
 }
 
 // NewService creates a new device service.
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// SetOtaSummarizer enables the per-device "ota" summary in listings.
+func (s *Service) SetOtaSummarizer(ota OtaSummarizer) {
+	s.ota = ota
 }
 
 // Create registers a new device, generating its public device_id and secret
@@ -212,9 +224,21 @@ func (s *Service) List(ctx context.Context, ownerID string) ([]Device, error) {
 		return nil, fmt.Errorf("list devices: %w", err)
 	}
 
+	var summaries map[uuid.UUID]OtaSummary
+	if s.ota != nil && len(entDevices) > 0 {
+		summaries, err = s.ota.SummarizeOta(ctx, entDevices)
+		if err != nil {
+			return nil, fmt.Errorf("summarize ota: %w", err)
+		}
+	}
+
 	devices := make([]Device, 0, len(entDevices))
 	for _, d := range entDevices {
-		devices = append(devices, toDevice(d))
+		device := toDevice(d)
+		if summary, ok := summaries[d.ID]; ok {
+			device.Ota = &summary
+		}
+		devices = append(devices, device)
 	}
 	return devices, nil
 }

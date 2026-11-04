@@ -9,12 +9,14 @@ import (
 	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/otajob"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // DeviceUpdate is the builder for updating Device entities.
@@ -162,6 +164,21 @@ func (_u *DeviceUpdate) AddReadings(v ...*DeviceReading) *DeviceUpdate {
 	return _u.AddReadingIDs(ids...)
 }
 
+// AddOtaJobIDs adds the "ota_jobs" edge to the OtaJob entity by IDs.
+func (_u *DeviceUpdate) AddOtaJobIDs(ids ...uuid.UUID) *DeviceUpdate {
+	_u.mutation.AddOtaJobIDs(ids...)
+	return _u
+}
+
+// AddOtaJobs adds the "ota_jobs" edges to the OtaJob entity.
+func (_u *DeviceUpdate) AddOtaJobs(v ...*OtaJob) *DeviceUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOtaJobIDs(ids...)
+}
+
 // AddLogIDs adds the "logs" edge to the DeviceLog entity by IDs.
 func (_u *DeviceUpdate) AddLogIDs(ids ...int64) *DeviceUpdate {
 	_u.mutation.AddLogIDs(ids...)
@@ -201,6 +218,27 @@ func (_u *DeviceUpdate) RemoveReadings(v ...*DeviceReading) *DeviceUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveReadingIDs(ids...)
+}
+
+// ClearOtaJobs clears all "ota_jobs" edges to the OtaJob entity.
+func (_u *DeviceUpdate) ClearOtaJobs() *DeviceUpdate {
+	_u.mutation.ClearOtaJobs()
+	return _u
+}
+
+// RemoveOtaJobIDs removes the "ota_jobs" edge to OtaJob entities by IDs.
+func (_u *DeviceUpdate) RemoveOtaJobIDs(ids ...uuid.UUID) *DeviceUpdate {
+	_u.mutation.RemoveOtaJobIDs(ids...)
+	return _u
+}
+
+// RemoveOtaJobs removes "ota_jobs" edges to OtaJob entities.
+func (_u *DeviceUpdate) RemoveOtaJobs(v ...*OtaJob) *DeviceUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOtaJobIDs(ids...)
 }
 
 // ClearLogs clears all "logs" edges to the DeviceLog entity.
@@ -366,6 +404,51 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OtaJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOtaJobsIDs(); len(nodes) > 0 && !_u.mutation.OtaJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OtaJobsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -571,6 +654,21 @@ func (_u *DeviceUpdateOne) AddReadings(v ...*DeviceReading) *DeviceUpdateOne {
 	return _u.AddReadingIDs(ids...)
 }
 
+// AddOtaJobIDs adds the "ota_jobs" edge to the OtaJob entity by IDs.
+func (_u *DeviceUpdateOne) AddOtaJobIDs(ids ...uuid.UUID) *DeviceUpdateOne {
+	_u.mutation.AddOtaJobIDs(ids...)
+	return _u
+}
+
+// AddOtaJobs adds the "ota_jobs" edges to the OtaJob entity.
+func (_u *DeviceUpdateOne) AddOtaJobs(v ...*OtaJob) *DeviceUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOtaJobIDs(ids...)
+}
+
 // AddLogIDs adds the "logs" edge to the DeviceLog entity by IDs.
 func (_u *DeviceUpdateOne) AddLogIDs(ids ...int64) *DeviceUpdateOne {
 	_u.mutation.AddLogIDs(ids...)
@@ -610,6 +708,27 @@ func (_u *DeviceUpdateOne) RemoveReadings(v ...*DeviceReading) *DeviceUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveReadingIDs(ids...)
+}
+
+// ClearOtaJobs clears all "ota_jobs" edges to the OtaJob entity.
+func (_u *DeviceUpdateOne) ClearOtaJobs() *DeviceUpdateOne {
+	_u.mutation.ClearOtaJobs()
+	return _u
+}
+
+// RemoveOtaJobIDs removes the "ota_jobs" edge to OtaJob entities by IDs.
+func (_u *DeviceUpdateOne) RemoveOtaJobIDs(ids ...uuid.UUID) *DeviceUpdateOne {
+	_u.mutation.RemoveOtaJobIDs(ids...)
+	return _u
+}
+
+// RemoveOtaJobs removes "ota_jobs" edges to OtaJob entities.
+func (_u *DeviceUpdateOne) RemoveOtaJobs(v ...*OtaJob) *DeviceUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOtaJobIDs(ids...)
 }
 
 // ClearLogs clears all "logs" edges to the DeviceLog entity.
@@ -805,6 +924,51 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OtaJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOtaJobsIDs(); len(nodes) > 0 && !_u.mutation.OtaJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OtaJobsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

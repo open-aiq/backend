@@ -6,6 +6,8 @@ import (
 	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/firmwarerelease"
+	"go-aiq-backend/internal/platform/ent/otajob"
 	"go-aiq-backend/internal/platform/ent/schema"
 	"time"
 
@@ -182,4 +184,124 @@ func init() {
 	devicereadingDescCreatedAt := devicereadingFields[13].Descriptor()
 	// devicereading.DefaultCreatedAt holds the default value on creation for the created_at field.
 	devicereading.DefaultCreatedAt = devicereadingDescCreatedAt.Default.(func() time.Time)
+	firmwarereleaseFields := schema.FirmwareRelease{}.Fields()
+	_ = firmwarereleaseFields
+	// firmwarereleaseDescVersion is the schema descriptor for version field.
+	firmwarereleaseDescVersion := firmwarereleaseFields[1].Descriptor()
+	// firmwarerelease.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	firmwarerelease.VersionValidator = func() func(string) error {
+		validators := firmwarereleaseDescVersion.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(version string) error {
+			for _, fn := range fns {
+				if err := fn(version); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// firmwarereleaseDescURL is the schema descriptor for url field.
+	firmwarereleaseDescURL := firmwarereleaseFields[2].Descriptor()
+	// firmwarerelease.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	firmwarerelease.URLValidator = func() func(string) error {
+		validators := firmwarereleaseDescURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(url string) error {
+			for _, fn := range fns {
+				if err := fn(url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// firmwarereleaseDescSha256 is the schema descriptor for sha256 field.
+	firmwarereleaseDescSha256 := firmwarereleaseFields[3].Descriptor()
+	// firmwarerelease.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	firmwarerelease.Sha256Validator = func() func(string) error {
+		validators := firmwarereleaseDescSha256.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(sha256 string) error {
+			for _, fn := range fns {
+				if err := fn(sha256); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// firmwarereleaseDescSize is the schema descriptor for size field.
+	firmwarereleaseDescSize := firmwarereleaseFields[4].Descriptor()
+	// firmwarerelease.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	firmwarerelease.SizeValidator = firmwarereleaseDescSize.Validators[0].(func(int64) error)
+	// firmwarereleaseDescNotes is the schema descriptor for notes field.
+	firmwarereleaseDescNotes := firmwarereleaseFields[5].Descriptor()
+	// firmwarerelease.DefaultNotes holds the default value on creation for the notes field.
+	firmwarerelease.DefaultNotes = firmwarereleaseDescNotes.Default.(string)
+	// firmwarereleaseDescCreatedAt is the schema descriptor for created_at field.
+	firmwarereleaseDescCreatedAt := firmwarereleaseFields[6].Descriptor()
+	// firmwarerelease.DefaultCreatedAt holds the default value on creation for the created_at field.
+	firmwarerelease.DefaultCreatedAt = firmwarereleaseDescCreatedAt.Default.(func() time.Time)
+	// firmwarereleaseDescID is the schema descriptor for id field.
+	firmwarereleaseDescID := firmwarereleaseFields[0].Descriptor()
+	// firmwarerelease.DefaultID holds the default value on creation for the id field.
+	firmwarerelease.DefaultID = firmwarereleaseDescID.Default.(func() uuid.UUID)
+	otajobFields := schema.OtaJob{}.Fields()
+	_ = otajobFields
+	// otajobDescProgress is the schema descriptor for progress field.
+	otajobDescProgress := otajobFields[4].Descriptor()
+	// otajob.DefaultProgress holds the default value on creation for the progress field.
+	otajob.DefaultProgress = otajobDescProgress.Default.(int)
+	// otajob.ProgressValidator is a validator for the "progress" field. It is called by the builders before save.
+	otajob.ProgressValidator = func() func(int) error {
+		validators := otajobDescProgress.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(progress int) error {
+			for _, fn := range fns {
+				if err := fn(progress); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// otajobDescError is the schema descriptor for error field.
+	otajobDescError := otajobFields[5].Descriptor()
+	// otajob.ErrorValidator is a validator for the "error" field. It is called by the builders before save.
+	otajob.ErrorValidator = otajobDescError.Validators[0].(func(string) error)
+	// otajobDescApprovedBy is the schema descriptor for approved_by field.
+	otajobDescApprovedBy := otajobFields[6].Descriptor()
+	// otajob.ApprovedByValidator is a validator for the "approved_by" field. It is called by the builders before save.
+	otajob.ApprovedByValidator = otajobDescApprovedBy.Validators[0].(func(string) error)
+	// otajobDescApprovedAt is the schema descriptor for approved_at field.
+	otajobDescApprovedAt := otajobFields[7].Descriptor()
+	// otajob.DefaultApprovedAt holds the default value on creation for the approved_at field.
+	otajob.DefaultApprovedAt = otajobDescApprovedAt.Default.(func() time.Time)
+	// otajobDescCreatedAt is the schema descriptor for created_at field.
+	otajobDescCreatedAt := otajobFields[8].Descriptor()
+	// otajob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	otajob.DefaultCreatedAt = otajobDescCreatedAt.Default.(func() time.Time)
+	// otajobDescUpdatedAt is the schema descriptor for updated_at field.
+	otajobDescUpdatedAt := otajobFields[9].Descriptor()
+	// otajob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	otajob.DefaultUpdatedAt = otajobDescUpdatedAt.Default.(func() time.Time)
+	// otajob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	otajob.UpdateDefaultUpdatedAt = otajobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// otajobDescID is the schema descriptor for id field.
+	otajobDescID := otajobFields[0].Descriptor()
+	// otajob.DefaultID holds the default value on creation for the id field.
+	otajob.DefaultID = otajobDescID.Default.(func() uuid.UUID)
 }

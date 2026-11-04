@@ -9,6 +9,7 @@ import (
 	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/otajob"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"math"
 
@@ -27,6 +28,7 @@ type DeviceQuery struct {
 	inters       []Interceptor
 	predicates   []predicate.Device
 	withReadings *DeviceReadingQuery
+	withOtaJobs  *OtaJobQuery
 	withLogs     *DeviceLogQuery
 	modifiers    []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
@@ -80,6 +82,28 @@ func (_q *DeviceQuery) QueryReadings() *DeviceReadingQuery {
 			sqlgraph.From(device.Table, device.FieldID, selector),
 			sqlgraph.To(devicereading.Table, devicereading.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, device.ReadingsTable, device.ReadingsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOtaJobs chains the current query on the "ota_jobs" edge.
+func (_q *DeviceQuery) QueryOtaJobs() *OtaJobQuery {
+	query := (&OtaJobClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(device.Table, device.FieldID, selector),
+			sqlgraph.To(otajob.Table, otajob.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, device.OtaJobsTable, device.OtaJobsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -302,6 +326,7 @@ func (_q *DeviceQuery) Clone() *DeviceQuery {
 		inters:       append([]Interceptor{}, _q.inters...),
 		predicates:   append([]predicate.Device{}, _q.predicates...),
 		withReadings: _q.withReadings.Clone(),
+		withOtaJobs:  _q.withOtaJobs.Clone(),
 		withLogs:     _q.withLogs.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
@@ -318,6 +343,17 @@ func (_q *DeviceQuery) WithReadings(opts ...func(*DeviceReadingQuery)) *DeviceQu
 		opt(query)
 	}
 	_q.withReadings = query
+	return _q
+}
+
+// WithOtaJobs tells the query-builder to eager-load the nodes that are connected to
+// the "ota_jobs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *DeviceQuery) WithOtaJobs(opts ...func(*OtaJobQuery)) *DeviceQuery {
+	query := (&OtaJobClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOtaJobs = query
 	return _q
 }
 
@@ -410,8 +446,9 @@ func (_q *DeviceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Devic
 	var (
 		nodes       = []*Device{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withReadings != nil,
+			_q.withOtaJobs != nil,
 			_q.withLogs != nil,
 		}
 	)
@@ -443,6 +480,13 @@ func (_q *DeviceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Devic
 			return nil, err
 		}
 	}
+	if query := _q.withOtaJobs; query != nil {
+		if err := _q.loadOtaJobs(ctx, query, nodes,
+			func(n *Device) { n.Edges.OtaJobs = []*OtaJob{} },
+			func(n *Device, e *OtaJob) { n.Edges.OtaJobs = append(n.Edges.OtaJobs, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withLogs; query != nil {
 		if err := _q.loadLogs(ctx, query, nodes,
 			func(n *Device) { n.Edges.Logs = []*DeviceLog{} },
@@ -468,6 +512,36 @@ func (_q *DeviceQuery) loadReadings(ctx context.Context, query *DeviceReadingQue
 	}
 	query.Where(predicate.DeviceReading(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(device.ReadingsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.DeviceID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "device_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *DeviceQuery) loadOtaJobs(ctx context.Context, query *OtaJobQuery, nodes []*Device, init func(*Device), assign func(*Device, *OtaJob)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Device)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(otajob.FieldDeviceID)
+	}
+	query.Where(predicate.OtaJob(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(device.OtaJobsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

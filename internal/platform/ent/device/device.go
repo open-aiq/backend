@@ -37,6 +37,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeReadings holds the string denoting the readings edge name in mutations.
 	EdgeReadings = "readings"
+	// EdgeOtaJobs holds the string denoting the ota_jobs edge name in mutations.
+	EdgeOtaJobs = "ota_jobs"
 	// EdgeLogs holds the string denoting the logs edge name in mutations.
 	EdgeLogs = "logs"
 	// Table holds the table name of the device in the database.
@@ -48,6 +50,13 @@ const (
 	ReadingsInverseTable = "device_readings"
 	// ReadingsColumn is the table column denoting the readings relation/edge.
 	ReadingsColumn = "device_id"
+	// OtaJobsTable is the table that holds the ota_jobs relation/edge.
+	OtaJobsTable = "ota_jobs"
+	// OtaJobsInverseTable is the table name for the OtaJob entity.
+	// It exists in this package in order to avoid circular dependency with the "otajob" package.
+	OtaJobsInverseTable = "ota_jobs"
+	// OtaJobsColumn is the table column denoting the ota_jobs relation/edge.
+	OtaJobsColumn = "device_id"
 	// LogsTable is the table that holds the logs relation/edge.
 	LogsTable = "device_logs"
 	// LogsInverseTable is the table name for the DeviceLog entity.
@@ -179,6 +188,20 @@ func ByReadings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByOtaJobsCount orders the results by ota_jobs count.
+func ByOtaJobsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newOtaJobsStep(), opts...)
+	}
+}
+
+// ByOtaJobs orders the results by ota_jobs terms.
+func ByOtaJobs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOtaJobsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByLogsCount orders the results by logs count.
 func ByLogsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -197,6 +220,13 @@ func newReadingsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ReadingsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ReadingsTable, ReadingsColumn),
+	)
+}
+func newOtaJobsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OtaJobsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, OtaJobsTable, OtaJobsColumn),
 	)
 }
 func newLogsStep() *sqlgraph.Step {

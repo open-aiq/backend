@@ -1,6 +1,7 @@
-h1:DipW2F2Oa/pZWkhSCJHBmifQ95B6/RzioMFc1EtwrIM=
+h1:wtULbAaQ4p825LQwzR6ItB25dWE/qf1TeQYXsK9ZKBc=
 20260906020932_init.sql h1:v9kvK4dWra+xnznbZsHG6l5FEwQkpyNn7m5RHJfAVuo=
 20260906220633_add_public_location_consent.sql h1:9Sp3FnuLM70sWdK+Kt48IW0jpvGPHBhzZyxFY0tjMYw=
 20260915152825_cascade_device_readings.sql h1:nIgX+/VFzEGX6eFIXC+QKp+GMGPshUuJ0ib3yRC2muk=
 20261104070902_device_firmware_version.sql h1:Cexc0oVYjvIRdZlxSJEgIOF3EQ4gr4hJhE36Mstkc8E=
 20261104071046_device_logs.sql h1:NQk06xqMRgREhdDoigmH1ebvGB80JlKRT+IsAYv5szM=
+20261104071136_firmware_ota.sql h1:5hH2UJk91C4Alyj7QkyBAtP9OZHhJ0BtcNIC+8LQEEU=

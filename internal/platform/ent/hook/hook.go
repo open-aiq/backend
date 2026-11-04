@@ -44,6 +44,30 @@ func (f DeviceReadingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceReadingMutation", m)
 }
 
+// The FirmwareReleaseFunc type is an adapter to allow the use of ordinary
+// function as FirmwareRelease mutator.
+type FirmwareReleaseFunc func(context.Context, *ent.FirmwareReleaseMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FirmwareReleaseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FirmwareReleaseMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FirmwareReleaseMutation", m)
+}
+
+// The OtaJobFunc type is an adapter to allow the use of ordinary
+// function as OtaJob mutator.
+type OtaJobFunc func(context.Context, *ent.OtaJobMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OtaJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OtaJobMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OtaJobMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

@@ -9,6 +9,7 @@ import (
 	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/otajob"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -166,6 +167,21 @@ func (_c *DeviceCreate) AddReadings(v ...*DeviceReading) *DeviceCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddReadingIDs(ids...)
+}
+
+// AddOtaJobIDs adds the "ota_jobs" edge to the OtaJob entity by IDs.
+func (_c *DeviceCreate) AddOtaJobIDs(ids ...uuid.UUID) *DeviceCreate {
+	_c.mutation.AddOtaJobIDs(ids...)
+	return _c
+}
+
+// AddOtaJobs adds the "ota_jobs" edges to the OtaJob entity.
+func (_c *DeviceCreate) AddOtaJobs(v ...*OtaJob) *DeviceCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddOtaJobIDs(ids...)
 }
 
 // AddLogIDs adds the "logs" edge to the DeviceLog entity by IDs.
@@ -374,6 +390,22 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OtaJobsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.OtaJobsTable,
+			Columns: []string{device.OtaJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(otajob.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

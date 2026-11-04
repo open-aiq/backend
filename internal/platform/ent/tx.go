@@ -18,6 +18,10 @@ type Tx struct {
 	DeviceLog *DeviceLogClient
 	// DeviceReading is the client for interacting with the DeviceReading builders.
 	DeviceReading *DeviceReadingClient
+	// FirmwareRelease is the client for interacting with the FirmwareRelease builders.
+	FirmwareRelease *FirmwareReleaseClient
+	// OtaJob is the client for interacting with the OtaJob builders.
+	OtaJob *OtaJobClient
 
 	// lazily loaded.
 	client     *Client
@@ -152,6 +156,8 @@ func (tx *Tx) init() {
 	tx.Device = NewDeviceClient(tx.config)
 	tx.DeviceLog = NewDeviceLogClient(tx.config)
 	tx.DeviceReading = NewDeviceReadingClient(tx.config)
+	tx.FirmwareRelease = NewFirmwareReleaseClient(tx.config)
+	tx.OtaJob = NewOtaJobClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

@@ -584,6 +584,29 @@ func HasReadingsWith(preds ...predicate.DeviceReading) predicate.Device {
 	})
 }
 
+// HasOtaJobs applies the HasEdge predicate on the "ota_jobs" edge.
+func HasOtaJobs() predicate.Device {
+	return predicate.Device(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, OtaJobsTable, OtaJobsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOtaJobsWith applies the HasEdge predicate on the "ota_jobs" edge with a given conditions (other predicates).
+func HasOtaJobsWith(preds ...predicate.OtaJob) predicate.Device {
+	return predicate.Device(func(s *sql.Selector) {
+		step := newOtaJobsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasLogs applies the HasEdge predicate on the "logs" edge.
 func HasLogs() predicate.Device {
 	return predicate.Device(func(s *sql.Selector) {

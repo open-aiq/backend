@@ -14,6 +14,8 @@ import (
 	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/firmwarerelease"
+	"go-aiq-backend/internal/platform/ent/otajob"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -33,6 +35,10 @@ type Client struct {
 	DeviceLog *DeviceLogClient
 	// DeviceReading is the client for interacting with the DeviceReading builders.
 	DeviceReading *DeviceReadingClient
+	// FirmwareRelease is the client for interacting with the FirmwareRelease builders.
+	FirmwareRelease *FirmwareReleaseClient
+	// OtaJob is the client for interacting with the OtaJob builders.
+	OtaJob *OtaJobClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -47,6 +53,8 @@ func (c *Client) init() {
 	c.Device = NewDeviceClient(c.config)
 	c.DeviceLog = NewDeviceLogClient(c.config)
 	c.DeviceReading = NewDeviceReadingClient(c.config)
+	c.FirmwareRelease = NewFirmwareReleaseClient(c.config)
+	c.OtaJob = NewOtaJobClient(c.config)
 }
 
 type (
@@ -137,11 +145,13 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		Device:        NewDeviceClient(cfg),
-		DeviceLog:     NewDeviceLogClient(cfg),
-		DeviceReading: NewDeviceReadingClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Device:          NewDeviceClient(cfg),
+		DeviceLog:       NewDeviceLogClient(cfg),
+		DeviceReading:   NewDeviceReadingClient(cfg),
+		FirmwareRelease: NewFirmwareReleaseClient(cfg),
+		OtaJob:          NewOtaJobClient(cfg),
 	}, nil
 }
 
@@ -159,11 +169,13 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		Device:        NewDeviceClient(cfg),
-		DeviceLog:     NewDeviceLogClient(cfg),
-		DeviceReading: NewDeviceReadingClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Device:          NewDeviceClient(cfg),
+		DeviceLog:       NewDeviceLogClient(cfg),
+		DeviceReading:   NewDeviceReadingClient(cfg),
+		FirmwareRelease: NewFirmwareReleaseClient(cfg),
+		OtaJob:          NewOtaJobClient(cfg),
 	}, nil
 }
 
@@ -195,6 +207,8 @@ func (c *Client) Use(hooks ...Hook) {
 	c.Device.Use(hooks...)
 	c.DeviceLog.Use(hooks...)
 	c.DeviceReading.Use(hooks...)
+	c.FirmwareRelease.Use(hooks...)
+	c.OtaJob.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
@@ -203,6 +217,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Device.Intercept(interceptors...)
 	c.DeviceLog.Intercept(interceptors...)
 	c.DeviceReading.Intercept(interceptors...)
+	c.FirmwareRelease.Intercept(interceptors...)
+	c.OtaJob.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -214,6 +230,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DeviceLog.mutate(ctx, m)
 	case *DeviceReadingMutation:
 		return c.DeviceReading.mutate(ctx, m)
+	case *FirmwareReleaseMutation:
+		return c.FirmwareRelease.mutate(ctx, m)
+	case *OtaJobMutation:
+		return c.OtaJob.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -336,6 +356,22 @@ func (c *DeviceClient) QueryReadings(_m *Device) *DeviceReadingQuery {
 			sqlgraph.From(device.Table, device.FieldID, id),
 			sqlgraph.To(devicereading.Table, devicereading.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, device.ReadingsTable, device.ReadingsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOtaJobs queries the ota_jobs edge of a Device.
+func (c *DeviceClient) QueryOtaJobs(_m *Device) *OtaJobQuery {
+	query := (&OtaJobClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(device.Table, device.FieldID, id),
+			sqlgraph.To(otajob.Table, otajob.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, device.OtaJobsTable, device.OtaJobsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -682,12 +718,326 @@ func (c *DeviceReadingClient) mutate(ctx context.Context, m *DeviceReadingMutati
 	}
 }
 
+// FirmwareReleaseClient is a client for the FirmwareRelease schema.
+type FirmwareReleaseClient struct {
+	config
+}
+
+// NewFirmwareReleaseClient returns a client for the FirmwareRelease from the given config.
+func NewFirmwareReleaseClient(c config) *FirmwareReleaseClient {
+	return &FirmwareReleaseClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `firmwarerelease.Hooks(f(g(h())))`.
+func (c *FirmwareReleaseClient) Use(hooks ...Hook) {
+	c.hooks.FirmwareRelease = append(c.hooks.FirmwareRelease, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `firmwarerelease.Intercept(f(g(h())))`.
+func (c *FirmwareReleaseClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FirmwareRelease = append(c.inters.FirmwareRelease, interceptors...)
+}
+
+// Create returns a builder for creating a FirmwareRelease entity.
+func (c *FirmwareReleaseClient) Create() *FirmwareReleaseCreate {
+	mutation := newFirmwareReleaseMutation(c.config, OpCreate)
+	return &FirmwareReleaseCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FirmwareRelease entities.
+func (c *FirmwareReleaseClient) CreateBulk(builders ...*FirmwareReleaseCreate) *FirmwareReleaseCreateBulk {
+	return &FirmwareReleaseCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FirmwareReleaseClient) MapCreateBulk(slice any, setFunc func(*FirmwareReleaseCreate, int)) *FirmwareReleaseCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FirmwareReleaseCreateBulk{err: fmt.Errorf("calling to FirmwareReleaseClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FirmwareReleaseCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FirmwareReleaseCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FirmwareRelease.
+func (c *FirmwareReleaseClient) Update() *FirmwareReleaseUpdate {
+	mutation := newFirmwareReleaseMutation(c.config, OpUpdate)
+	return &FirmwareReleaseUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FirmwareReleaseClient) UpdateOne(_m *FirmwareRelease) *FirmwareReleaseUpdateOne {
+	mutation := newFirmwareReleaseMutation(c.config, OpUpdateOne, withFirmwareRelease(_m))
+	return &FirmwareReleaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FirmwareReleaseClient) UpdateOneID(id uuid.UUID) *FirmwareReleaseUpdateOne {
+	mutation := newFirmwareReleaseMutation(c.config, OpUpdateOne, withFirmwareReleaseID(id))
+	return &FirmwareReleaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FirmwareRelease.
+func (c *FirmwareReleaseClient) Delete() *FirmwareReleaseDelete {
+	mutation := newFirmwareReleaseMutation(c.config, OpDelete)
+	return &FirmwareReleaseDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FirmwareReleaseClient) DeleteOne(_m *FirmwareRelease) *FirmwareReleaseDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FirmwareReleaseClient) DeleteOneID(id uuid.UUID) *FirmwareReleaseDeleteOne {
+	builder := c.Delete().Where(firmwarerelease.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FirmwareReleaseDeleteOne{builder}
+}
+
+// Query returns a query builder for FirmwareRelease.
+func (c *FirmwareReleaseClient) Query() *FirmwareReleaseQuery {
+	return &FirmwareReleaseQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFirmwareRelease},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FirmwareRelease entity by its id.
+func (c *FirmwareReleaseClient) Get(ctx context.Context, id uuid.UUID) (*FirmwareRelease, error) {
+	return c.Query().Where(firmwarerelease.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FirmwareReleaseClient) GetX(ctx context.Context, id uuid.UUID) *FirmwareRelease {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOtaJobs queries the ota_jobs edge of a FirmwareRelease.
+func (c *FirmwareReleaseClient) QueryOtaJobs(_m *FirmwareRelease) *OtaJobQuery {
+	query := (&OtaJobClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(firmwarerelease.Table, firmwarerelease.FieldID, id),
+			sqlgraph.To(otajob.Table, otajob.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, firmwarerelease.OtaJobsTable, firmwarerelease.OtaJobsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *FirmwareReleaseClient) Hooks() []Hook {
+	return c.hooks.FirmwareRelease
+}
+
+// Interceptors returns the client interceptors.
+func (c *FirmwareReleaseClient) Interceptors() []Interceptor {
+	return c.inters.FirmwareRelease
+}
+
+func (c *FirmwareReleaseClient) mutate(ctx context.Context, m *FirmwareReleaseMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FirmwareReleaseCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FirmwareReleaseUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FirmwareReleaseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FirmwareReleaseDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FirmwareRelease mutation op: %q", m.Op())
+	}
+}
+
+// OtaJobClient is a client for the OtaJob schema.
+type OtaJobClient struct {
+	config
+}
+
+// NewOtaJobClient returns a client for the OtaJob from the given config.
+func NewOtaJobClient(c config) *OtaJobClient {
+	return &OtaJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `otajob.Hooks(f(g(h())))`.
+func (c *OtaJobClient) Use(hooks ...Hook) {
+	c.hooks.OtaJob = append(c.hooks.OtaJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `otajob.Intercept(f(g(h())))`.
+func (c *OtaJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OtaJob = append(c.inters.OtaJob, interceptors...)
+}
+
+// Create returns a builder for creating a OtaJob entity.
+func (c *OtaJobClient) Create() *OtaJobCreate {
+	mutation := newOtaJobMutation(c.config, OpCreate)
+	return &OtaJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OtaJob entities.
+func (c *OtaJobClient) CreateBulk(builders ...*OtaJobCreate) *OtaJobCreateBulk {
+	return &OtaJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OtaJobClient) MapCreateBulk(slice any, setFunc func(*OtaJobCreate, int)) *OtaJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OtaJobCreateBulk{err: fmt.Errorf("calling to OtaJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OtaJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OtaJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OtaJob.
+func (c *OtaJobClient) Update() *OtaJobUpdate {
+	mutation := newOtaJobMutation(c.config, OpUpdate)
+	return &OtaJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OtaJobClient) UpdateOne(_m *OtaJob) *OtaJobUpdateOne {
+	mutation := newOtaJobMutation(c.config, OpUpdateOne, withOtaJob(_m))
+	return &OtaJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OtaJobClient) UpdateOneID(id uuid.UUID) *OtaJobUpdateOne {
+	mutation := newOtaJobMutation(c.config, OpUpdateOne, withOtaJobID(id))
+	return &OtaJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OtaJob.
+func (c *OtaJobClient) Delete() *OtaJobDelete {
+	mutation := newOtaJobMutation(c.config, OpDelete)
+	return &OtaJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OtaJobClient) DeleteOne(_m *OtaJob) *OtaJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OtaJobClient) DeleteOneID(id uuid.UUID) *OtaJobDeleteOne {
+	builder := c.Delete().Where(otajob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OtaJobDeleteOne{builder}
+}
+
+// Query returns a query builder for OtaJob.
+func (c *OtaJobClient) Query() *OtaJobQuery {
+	return &OtaJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOtaJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OtaJob entity by its id.
+func (c *OtaJobClient) Get(ctx context.Context, id uuid.UUID) (*OtaJob, error) {
+	return c.Query().Where(otajob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OtaJobClient) GetX(ctx context.Context, id uuid.UUID) *OtaJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryDevice queries the device edge of a OtaJob.
+func (c *OtaJobClient) QueryDevice(_m *OtaJob) *DeviceQuery {
+	query := (&DeviceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(otajob.Table, otajob.FieldID, id),
+			sqlgraph.To(device.Table, device.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, otajob.DeviceTable, otajob.DeviceColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRelease queries the release edge of a OtaJob.
+func (c *OtaJobClient) QueryRelease(_m *OtaJob) *FirmwareReleaseQuery {
+	query := (&FirmwareReleaseClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(otajob.Table, otajob.FieldID, id),
+			sqlgraph.To(firmwarerelease.Table, firmwarerelease.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, otajob.ReleaseTable, otajob.ReleaseColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *OtaJobClient) Hooks() []Hook {
+	return c.hooks.OtaJob
+}
+
+// Interceptors returns the client interceptors.
+func (c *OtaJobClient) Interceptors() []Interceptor {
+	return c.inters.OtaJob
+}
+
+func (c *OtaJobClient) mutate(ctx context.Context, m *OtaJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OtaJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OtaJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OtaJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OtaJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OtaJob mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Device, DeviceLog, DeviceReading []ent.Hook
+		Device, DeviceLog, DeviceReading, FirmwareRelease, OtaJob []ent.Hook
 	}
 	inters struct {
-		Device, DeviceLog, DeviceReading []ent.Interceptor
+		Device, DeviceLog, DeviceReading, FirmwareRelease, OtaJob []ent.Interceptor
 	}
 )

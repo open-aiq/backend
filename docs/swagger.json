@@ -349,6 +349,138 @@
                 }
             }
         },
+        "/device/ota": {
+            "get": {
+                "description": "Returns the update the owner approved for the calling device, or null.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Data"
+                ],
+                "summary": "Check for an approved update (device)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public device id (dev_...)",
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Secret device key (sk_...)",
+                        "name": "X-Device-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Running firmware version",
+                        "name": "X-Firmware-Version",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/firmware.DeviceJobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/ota/status": {
+            "post": {
+                "description": "The device reports downloading (with progress), installing, succeeded or failed. 409 means the job was cancelled or already finished and the device must stop.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Data"
+                ],
+                "summary": "Report update progress (device)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public device id (dev_...)",
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Secret device key (sk_...)",
+                        "name": "X-Device-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Progress report",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/firmware.StatusReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/firmware.JobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
         "/devices": {
             "get": {
                 "security": [
@@ -817,6 +949,204 @@
                 }
             }
         },
+        "/devices/{id}/ota": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the running firmware version, the newest newer release (if any) and the latest update job.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Firmware"
+                ],
+                "summary": "Get a device's firmware update state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/firmware.DeviceOtaResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/ota/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approves installing a release on the device. The device downloads it on its next check-in (after its next upload, or immediately when the app sends OTA:CHECK over BLE).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Firmware"
+                ],
+                "summary": "Approve a firmware update",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Release to install",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/firmware.ApproveRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/firmware.JobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/ota/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Withdraws an approval before the device starts downloading.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Firmware"
+                ],
+                "summary": "Cancel an approved firmware update",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/firmware.JobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
         "/devices/{id}/rotate-key": {
             "post": {
                 "security": [
@@ -856,6 +1186,77 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/firmware/releases": {
+            "post": {
+                "description": "Registers an OTA image hosted at an HTTPS URL. Called by the device release pipeline with the FIRMWARE_PUBLISH_TOKEN bearer token. Owners are then offered the update in the app.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Firmware"
+                ],
+                "summary": "Publish a firmware release",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003cFIRMWARE_PUBLISH_TOKEN\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Release metadata",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/firmware.PublishReleaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/firmware.ReleaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
@@ -1358,6 +1759,14 @@
                     "type": "string",
                     "example": "Living Room Sensor"
                 },
+                "ota": {
+                    "description": "Ota summarizes the device's firmware-update state in listings; null when unknown.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/device.OtaSummary"
+                        }
+                    ]
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -1382,6 +1791,33 @@
                     "items": {
                         "$ref": "#/definitions/device.PublicDevice"
                     }
+                }
+            }
+        },
+        "device.OtaSummary": {
+            "type": "object",
+            "properties": {
+                "progress": {
+                    "type": "integer",
+                    "example": 40
+                },
+                "status": {
+                    "description": "Status is one of: up_to_date, update_available, approved, downloading,\ninstalling, failed.",
+                    "type": "string",
+                    "enum": [
+                        "up_to_date",
+                        "update_available",
+                        "approved",
+                        "downloading",
+                        "installing",
+                        "failed"
+                    ],
+                    "example": "update_available"
+                },
+                "version": {
+                    "description": "Version is the release the status refers to (the available or in-progress one).",
+                    "type": "string",
+                    "example": "0.2.0"
                 }
             }
         },
@@ -1712,6 +2148,246 @@
                 },
                 "id": {
                     "type": "integer"
+                }
+            }
+        },
+        "firmware.ApproveRequest": {
+            "type": "object",
+            "required": [
+                "release_id"
+            ],
+            "properties": {
+                "release_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "firmware.DeviceJob": {
+            "type": "object",
+            "properties": {
+                "job_id": {
+                    "type": "string"
+                },
+                "sha256": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "downloading",
+                        "installing"
+                    ],
+                    "example": "approved"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "0.2.0"
+                }
+            }
+        },
+        "firmware.DeviceJobResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/firmware.DeviceJob"
+                }
+            }
+        },
+        "firmware.DeviceOta": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "description": "Available is the newest release newer than CurrentVersion, if any.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/firmware.Release"
+                        }
+                    ]
+                },
+                "current_version": {
+                    "description": "CurrentVersion is the firmware the device last reported; null if it never did\n(firmware that predates OTA support).",
+                    "type": "string",
+                    "example": "0.1.0"
+                },
+                "job": {
+                    "description": "Job is the most recent update job of the device, if any.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/firmware.Job"
+                        }
+                    ]
+                }
+            }
+        },
+        "firmware.DeviceOtaResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/firmware.DeviceOta"
+                }
+            }
+        },
+        "firmware.Job": {
+            "type": "object",
+            "properties": {
+                "approved_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer",
+                    "example": 40
+                },
+                "release_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "downloading",
+                        "installing",
+                        "succeeded",
+                        "failed",
+                        "cancelled"
+                    ],
+                    "example": "downloading"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "0.2.0"
+                }
+            }
+        },
+        "firmware.JobResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/firmware.Job"
+                }
+            }
+        },
+        "firmware.PublishReleaseRequest": {
+            "type": "object",
+            "required": [
+                "sha256",
+                "size",
+                "url",
+                "version"
+            ],
+            "properties": {
+                "notes": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "example": "Adds secure BLE pairing."
+                },
+                "sha256": {
+                    "type": "string",
+                    "example": "53ff9481b8ea2e8ec2c9533432c1e66df99c68a0a9e3079dc455547b13d39346"
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 1600800
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "example": "https://github.com/open-aiq/aqs-device/releases/download/v0.2.0/device_rust.bin"
+                },
+                "version": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "0.2.0"
+                }
+            }
+        },
+        "firmware.Release": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "sha256": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 1600800
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "0.2.0"
+                }
+            }
+        },
+        "firmware.ReleaseResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/firmware.Release"
+                }
+            }
+        },
+        "firmware.StatusReportRequest": {
+            "type": "object",
+            "required": [
+                "job_id",
+                "status",
+                "version"
+            ],
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 40
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "downloading",
+                        "installing",
+                        "succeeded",
+                        "failed"
+                    ],
+                    "example": "downloading"
+                },
+                "version": {
+                    "description": "Version is the firmware version currently running on the device.",
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "0.1.0"
                 }
             }
         },
