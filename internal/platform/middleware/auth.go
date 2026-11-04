@@ -12,7 +12,11 @@ import (
 const userIDKey = "clerk_user_id"
 
 // ClerkAuth verifies Clerk bearer session tokens and stores their subject in Gin context.
-func ClerkAuth(secretKey string, authorizedParties []string) gin.HandlerFunc {
+//
+// Browser tokens must carry an authorized-party (azp) claim from
+// authorizedParties. Tokens issued to native clients (the mobile app) carry no
+// azp at all; they are accepted only when allowNativeClients is true.
+func ClerkAuth(secretKey string, authorizedParties []string, allowNativeClients bool) gin.HandlerFunc {
 	clerk.SetKey(secretKey)
 	allowed := make(map[string]struct{}, len(authorizedParties))
 	for _, party := range authorizedParties {
@@ -22,7 +26,7 @@ func ClerkAuth(secretKey string, authorizedParties []string) gin.HandlerFunc {
 		problem.WriteHTTP(w, r, problem.Unauthorized, "A valid Clerk session token is required.")
 	})
 	verify := clerkhttp.WithHeaderAuthorization(
-		clerkhttp.AuthorizedParty(func(party string) bool { _, ok := allowed[party]; return party != "" && ok }),
+		clerkhttp.AuthorizedParty(func(party string) bool { return authorizedParty(allowed, allowNativeClients, party) }),
 		clerkhttp.AuthorizationFailureHandler(failure),
 	)
 
@@ -49,3 +53,11 @@ func ClerkAuth(secretKey string, authorizedParties []string) gin.HandlerFunc {
 }
 
 func UserID(c *gin.Context) string { return c.GetString(userIDKey) }
+
+func authorizedParty(allowed map[string]struct{}, allowNativeClients bool, party string) bool {
+	if party == "" {
+		return allowNativeClients
+	}
+	_, ok := allowed[party]
+	return ok
+}

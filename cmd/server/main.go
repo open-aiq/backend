@@ -100,7 +100,7 @@ func main() {
 
 	api := r.Group("/api/v1")
 	authenticated := api.Group("")
-	authenticated.Use(middleware.ClerkAuth(cfg.ClerkSecretKey, cfg.ClerkAuthorizedParties))
+	authenticated.Use(middleware.ClerkAuth(cfg.ClerkSecretKey, cfg.ClerkAuthorizedParties, cfg.ClerkAllowNativeClients))
 	handler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterPublicRoutes(api)
