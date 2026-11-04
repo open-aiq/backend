@@ -69,6 +69,10 @@ esac
 
 git rev-parse "$next" >/dev/null 2>&1 && die "tag $next already exists"
 
+# Major and minor versions must be registered at docs.air-iq.net/versions.json
+# (open-aiq/docs src/data/versions.json) before they can be released.
+bash scripts/check-version-registry.sh backend "$next"
+
 read -rp "Release $next from $branch? [y/N]: " confirm
 case "$confirm" in
 	y|Y) ;;
@@ -130,5 +134,9 @@ gh release create "$next" \
 	--target "$branch" \
 	--generate-notes \
 	"$DIST"/*
+
+echo "==> Refreshing the releases page on docs.air-iq.net"
+gh workflow run deploy.yml --repo open-aiq/docs >/dev/null 2>&1 ||
+	echo "warning: could not start the docs deploy; run it from open-aiq/docs Actions so the release is listed" >&2
 
 echo "==> Done: $next published (artifacts in $DIST/)."
