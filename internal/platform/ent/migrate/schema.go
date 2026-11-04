@@ -122,15 +122,75 @@ var (
 			},
 		},
 	}
+	// FirmwareReleasesColumns holds the columns for the "firmware_releases" table.
+	FirmwareReleasesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "version", Type: field.TypeString, Unique: true, Size: 32},
+		{Name: "url", Type: field.TypeString, Size: 2048},
+		{Name: "sha256", Type: field.TypeString, Size: 64},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "notes", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// FirmwareReleasesTable holds the schema information for the "firmware_releases" table.
+	FirmwareReleasesTable = &schema.Table{
+		Name:       "firmware_releases",
+		Columns:    FirmwareReleasesColumns,
+		PrimaryKey: []*schema.Column{FirmwareReleasesColumns[0]},
+	}
+	// OtaJobsColumns holds the columns for the "ota_jobs" table.
+	OtaJobsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"approved", "downloading", "installing", "succeeded", "failed", "cancelled"}, Default: "approved"},
+		{Name: "progress", Type: field.TypeInt, Default: 0},
+		{Name: "error", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "approved_by", Type: field.TypeString},
+		{Name: "approved_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "device_id", Type: field.TypeUUID},
+		{Name: "release_id", Type: field.TypeUUID},
+	}
+	// OtaJobsTable holds the schema information for the "ota_jobs" table.
+	OtaJobsTable = &schema.Table{
+		Name:       "ota_jobs",
+		Columns:    OtaJobsColumns,
+		PrimaryKey: []*schema.Column{OtaJobsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "ota_jobs_devices_ota_jobs",
+				Columns:    []*schema.Column{OtaJobsColumns[8]},
+				RefColumns: []*schema.Column{DevicesColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "ota_jobs_firmware_releases_ota_jobs",
+				Columns:    []*schema.Column{OtaJobsColumns[9]},
+				RefColumns: []*schema.Column{FirmwareReleasesColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "otajob_device_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OtaJobsColumns[8], OtaJobsColumns[6]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		DevicesTable,
 		DeviceLogsTable,
 		DeviceReadingsTable,
+		FirmwareReleasesTable,
+		OtaJobsTable,
 	}
 )
 
 func init() {
 	DeviceLogsTable.ForeignKeys[0].RefTable = DevicesTable
 	DeviceReadingsTable.ForeignKeys[0].RefTable = DevicesTable
+	OtaJobsTable.ForeignKeys[0].RefTable = DevicesTable
+	OtaJobsTable.ForeignKeys[1].RefTable = FirmwareReleasesTable
 }

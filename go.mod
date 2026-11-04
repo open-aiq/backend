@@ -15,6 +15,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
+	golang.org/x/mod v0.36.0
 )
 
 require (
@@ -71,7 +72,6 @@ require (
 	go.mongodb.org/mongo-driver/v2 v2.6.0 // indirect
 	golang.org/x/arch v0.28.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect

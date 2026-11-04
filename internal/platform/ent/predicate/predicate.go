@@ -14,3 +14,9 @@ type DeviceLog func(*sql.Selector)
 
 // DeviceReading is the predicate function for devicereading builders.
 type DeviceReading func(*sql.Selector)
+
+// FirmwareRelease is the predicate function for firmwarerelease builders.
+type FirmwareRelease func(*sql.Selector)
+
+// OtaJob is the predicate function for otajob builders.
+type OtaJob func(*sql.Selector)

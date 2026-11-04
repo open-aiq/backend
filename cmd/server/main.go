@@ -20,6 +20,7 @@ import (
 	"go-aiq-backend/internal/device"
 	"go-aiq-backend/internal/devicelog"
 	"go-aiq-backend/internal/devicereading"
+	"go-aiq-backend/internal/firmware"
 	"go-aiq-backend/internal/platform/config"
 	"go-aiq-backend/internal/platform/database"
 	"go-aiq-backend/internal/platform/middleware"
@@ -73,6 +74,12 @@ func main() {
 		deviceService,
 	)
 
+	// Wire up firmware releases and owner-approved OTA updates. The firmware
+	// service also supplies the "ota" badge state in device listings.
+	firmwareService := firmware.NewService(firmware.NewEntRepository(client))
+	deviceService.SetOtaSummarizer(firmwareService)
+	firmwareHandler := firmware.NewHandler(firmwareService)
+
 	// Wire up device log ingestion and its retention job.
 	logService := devicelog.NewService(devicelog.NewEntRepository(client))
 	logHandler := devicelog.NewHandler(logService)
@@ -113,10 +120,13 @@ func main() {
 	authenticated.Use(middleware.ClerkAuth(cfg.ClerkSecretKey, cfg.ClerkAuthorizedParties, cfg.ClerkAllowNativeClients))
 	handler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterRoutes(authenticated)
+	firmwareHandler.RegisterRoutes(authenticated)
 	logHandler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterPublicRoutes(api)
 	handler.RegisterPublicRoutes(api)
 	readingHandler.RegisterRoutes(api)
+	firmwareHandler.RegisterDeviceRoutes(api, deviceService)
+	firmwareHandler.RegisterPublishRoutes(api, cfg.FirmwarePublishToken)
 	logHandler.RegisterDeviceRoutes(api, deviceService)
 
 	srv := &http.Server{

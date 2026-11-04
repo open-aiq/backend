@@ -49,11 +49,13 @@ type Device struct {
 type DeviceEdges struct {
 	// Readings holds the value of the readings edge.
 	Readings []*DeviceReading `json:"readings,omitempty"`
+	// OtaJobs holds the value of the ota_jobs edge.
+	OtaJobs []*OtaJob `json:"ota_jobs,omitempty"`
 	// Logs holds the value of the logs edge.
 	Logs []*DeviceLog `json:"logs,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // ReadingsOrErr returns the Readings value or an error if the edge
@@ -65,10 +67,19 @@ func (e DeviceEdges) ReadingsOrErr() ([]*DeviceReading, error) {
 	return nil, &NotLoadedError{edge: "readings"}
 }
 
+// OtaJobsOrErr returns the OtaJobs value or an error if the edge
+// was not loaded in eager-loading.
+func (e DeviceEdges) OtaJobsOrErr() ([]*OtaJob, error) {
+	if e.loadedTypes[1] {
+		return e.OtaJobs, nil
+	}
+	return nil, &NotLoadedError{edge: "ota_jobs"}
+}
+
 // LogsOrErr returns the Logs value or an error if the edge
 // was not loaded in eager-loading.
 func (e DeviceEdges) LogsOrErr() ([]*DeviceLog, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Logs, nil
 	}
 	return nil, &NotLoadedError{edge: "logs"}
@@ -186,6 +197,11 @@ func (_m *Device) Value(name string) (ent.Value, error) {
 // QueryReadings queries the "readings" edge of the Device entity.
 func (_m *Device) QueryReadings() *DeviceReadingQuery {
 	return NewDeviceClient(_m.config).QueryReadings(_m)
+}
+
+// QueryOtaJobs queries the "ota_jobs" edge of the Device entity.
+func (_m *Device) QueryOtaJobs() *OtaJobQuery {
+	return NewDeviceClient(_m.config).QueryOtaJobs(_m)
 }
 
 // QueryLogs queries the "logs" edge of the Device entity.

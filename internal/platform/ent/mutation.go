@@ -9,6 +9,8 @@ import (
 	"go-aiq-backend/internal/platform/ent/device"
 	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
+	"go-aiq-backend/internal/platform/ent/firmwarerelease"
+	"go-aiq-backend/internal/platform/ent/otajob"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"sync"
 	"time"
@@ -27,9 +29,11 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeDevice        = "Device"
-	TypeDeviceLog     = "DeviceLog"
-	TypeDeviceReading = "DeviceReading"
+	TypeDevice          = "Device"
+	TypeDeviceLog       = "DeviceLog"
+	TypeDeviceReading   = "DeviceReading"
+	TypeFirmwareRelease = "FirmwareRelease"
+	TypeOtaJob          = "OtaJob"
 )
 
 // DeviceMutation represents an operation that mutates the Device nodes in the graph.
@@ -52,6 +56,9 @@ type DeviceMutation struct {
 	readings           map[int]struct{}
 	removedreadings    map[int]struct{}
 	clearedreadings    bool
+	ota_jobs           map[uuid.UUID]struct{}
+	removedota_jobs    map[uuid.UUID]struct{}
+	clearedota_jobs    bool
 	logs               map[int64]struct{}
 	removedlogs        map[int64]struct{}
 	clearedlogs        bool
@@ -604,6 +611,60 @@ func (m *DeviceMutation) ResetReadings() {
 	m.removedreadings = nil
 }
 
+// AddOtaJobIDs adds the "ota_jobs" edge to the OtaJob entity by ids.
+func (m *DeviceMutation) AddOtaJobIDs(ids ...uuid.UUID) {
+	if m.ota_jobs == nil {
+		m.ota_jobs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.ota_jobs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearOtaJobs clears the "ota_jobs" edge to the OtaJob entity.
+func (m *DeviceMutation) ClearOtaJobs() {
+	m.clearedota_jobs = true
+}
+
+// OtaJobsCleared reports if the "ota_jobs" edge to the OtaJob entity was cleared.
+func (m *DeviceMutation) OtaJobsCleared() bool {
+	return m.clearedota_jobs
+}
+
+// RemoveOtaJobIDs removes the "ota_jobs" edge to the OtaJob entity by IDs.
+func (m *DeviceMutation) RemoveOtaJobIDs(ids ...uuid.UUID) {
+	if m.removedota_jobs == nil {
+		m.removedota_jobs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.ota_jobs, ids[i])
+		m.removedota_jobs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedOtaJobs returns the removed IDs of the "ota_jobs" edge to the OtaJob entity.
+func (m *DeviceMutation) RemovedOtaJobsIDs() (ids []uuid.UUID) {
+	for id := range m.removedota_jobs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// OtaJobsIDs returns the "ota_jobs" edge IDs in the mutation.
+func (m *DeviceMutation) OtaJobsIDs() (ids []uuid.UUID) {
+	for id := range m.ota_jobs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetOtaJobs resets all changes to the "ota_jobs" edge.
+func (m *DeviceMutation) ResetOtaJobs() {
+	m.ota_jobs = nil
+	m.clearedota_jobs = false
+	m.removedota_jobs = nil
+}
+
 // AddLogIDs adds the "logs" edge to the DeviceLog entity by ids.
 func (m *DeviceMutation) AddLogIDs(ids ...int64) {
 	if m.logs == nil {
@@ -959,9 +1020,12 @@ func (m *DeviceMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *DeviceMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.readings != nil {
 		edges = append(edges, device.EdgeReadings)
+	}
+	if m.ota_jobs != nil {
+		edges = append(edges, device.EdgeOtaJobs)
 	}
 	if m.logs != nil {
 		edges = append(edges, device.EdgeLogs)
@@ -979,6 +1043,12 @@ func (m *DeviceMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case device.EdgeOtaJobs:
+		ids := make([]ent.Value, 0, len(m.ota_jobs))
+		for id := range m.ota_jobs {
+			ids = append(ids, id)
+		}
+		return ids
 	case device.EdgeLogs:
 		ids := make([]ent.Value, 0, len(m.logs))
 		for id := range m.logs {
@@ -991,9 +1061,12 @@ func (m *DeviceMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *DeviceMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedreadings != nil {
 		edges = append(edges, device.EdgeReadings)
+	}
+	if m.removedota_jobs != nil {
+		edges = append(edges, device.EdgeOtaJobs)
 	}
 	if m.removedlogs != nil {
 		edges = append(edges, device.EdgeLogs)
@@ -1011,6 +1084,12 @@ func (m *DeviceMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case device.EdgeOtaJobs:
+		ids := make([]ent.Value, 0, len(m.removedota_jobs))
+		for id := range m.removedota_jobs {
+			ids = append(ids, id)
+		}
+		return ids
 	case device.EdgeLogs:
 		ids := make([]ent.Value, 0, len(m.removedlogs))
 		for id := range m.removedlogs {
@@ -1023,9 +1102,12 @@ func (m *DeviceMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *DeviceMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedreadings {
 		edges = append(edges, device.EdgeReadings)
+	}
+	if m.clearedota_jobs {
+		edges = append(edges, device.EdgeOtaJobs)
 	}
 	if m.clearedlogs {
 		edges = append(edges, device.EdgeLogs)
@@ -1039,6 +1121,8 @@ func (m *DeviceMutation) EdgeCleared(name string) bool {
 	switch name {
 	case device.EdgeReadings:
 		return m.clearedreadings
+	case device.EdgeOtaJobs:
+		return m.clearedota_jobs
 	case device.EdgeLogs:
 		return m.clearedlogs
 	}
@@ -1059,6 +1143,9 @@ func (m *DeviceMutation) ResetEdge(name string) error {
 	switch name {
 	case device.EdgeReadings:
 		m.ResetReadings()
+		return nil
+	case device.EdgeOtaJobs:
+		m.ResetOtaJobs()
 		return nil
 	case device.EdgeLogs:
 		m.ResetLogs()
@@ -3364,4 +3451,1657 @@ func (m *DeviceReadingMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DeviceReading edge %s", name)
+}
+
+// FirmwareReleaseMutation represents an operation that mutates the FirmwareRelease nodes in the graph.
+type FirmwareReleaseMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	version         *string
+	url             *string
+	sha256          *string
+	size            *int64
+	addsize         *int64
+	notes           *string
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	ota_jobs        map[uuid.UUID]struct{}
+	removedota_jobs map[uuid.UUID]struct{}
+	clearedota_jobs bool
+	done            bool
+	oldValue        func(context.Context) (*FirmwareRelease, error)
+	predicates      []predicate.FirmwareRelease
+}
+
+var _ ent.Mutation = (*FirmwareReleaseMutation)(nil)
+
+// firmwarereleaseOption allows management of the mutation configuration using functional options.
+type firmwarereleaseOption func(*FirmwareReleaseMutation)
+
+// newFirmwareReleaseMutation creates new mutation for the FirmwareRelease entity.
+func newFirmwareReleaseMutation(c config, op Op, opts ...firmwarereleaseOption) *FirmwareReleaseMutation {
+	m := &FirmwareReleaseMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeFirmwareRelease,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withFirmwareReleaseID sets the ID field of the mutation.
+func withFirmwareReleaseID(id uuid.UUID) firmwarereleaseOption {
+	return func(m *FirmwareReleaseMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *FirmwareRelease
+		)
+		m.oldValue = func(ctx context.Context) (*FirmwareRelease, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().FirmwareRelease.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withFirmwareRelease sets the old FirmwareRelease of the mutation.
+func withFirmwareRelease(node *FirmwareRelease) firmwarereleaseOption {
+	return func(m *FirmwareReleaseMutation) {
+		m.oldValue = func(context.Context) (*FirmwareRelease, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m FirmwareReleaseMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m FirmwareReleaseMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of FirmwareRelease entities.
+func (m *FirmwareReleaseMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *FirmwareReleaseMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *FirmwareReleaseMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().FirmwareRelease.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetVersion sets the "version" field.
+func (m *FirmwareReleaseMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *FirmwareReleaseMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the FirmwareRelease entity.
+// If the FirmwareRelease object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FirmwareReleaseMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *FirmwareReleaseMutation) ResetVersion() {
+	m.version = nil
+}
+
+// SetURL sets the "url" field.
+func (m *FirmwareReleaseMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *FirmwareReleaseMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the FirmwareRelease entity.
+// If the FirmwareRelease object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FirmwareReleaseMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *FirmwareReleaseMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *FirmwareReleaseMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *FirmwareReleaseMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the FirmwareRelease entity.
+// If the FirmwareRelease object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FirmwareReleaseMutation) OldSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *FirmwareReleaseMutation) ResetSha256() {
+	m.sha256 = nil
+}
+
+// SetSize sets the "size" field.
+func (m *FirmwareReleaseMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *FirmwareReleaseMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the FirmwareRelease entity.
+// If the FirmwareRelease object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FirmwareReleaseMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *FirmwareReleaseMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *FirmwareReleaseMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *FirmwareReleaseMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetNotes sets the "notes" field.
+func (m *FirmwareReleaseMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *FirmwareReleaseMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the FirmwareRelease entity.
+// If the FirmwareRelease object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FirmwareReleaseMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *FirmwareReleaseMutation) ResetNotes() {
+	m.notes = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *FirmwareReleaseMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *FirmwareReleaseMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the FirmwareRelease entity.
+// If the FirmwareRelease object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FirmwareReleaseMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *FirmwareReleaseMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// AddOtaJobIDs adds the "ota_jobs" edge to the OtaJob entity by ids.
+func (m *FirmwareReleaseMutation) AddOtaJobIDs(ids ...uuid.UUID) {
+	if m.ota_jobs == nil {
+		m.ota_jobs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.ota_jobs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearOtaJobs clears the "ota_jobs" edge to the OtaJob entity.
+func (m *FirmwareReleaseMutation) ClearOtaJobs() {
+	m.clearedota_jobs = true
+}
+
+// OtaJobsCleared reports if the "ota_jobs" edge to the OtaJob entity was cleared.
+func (m *FirmwareReleaseMutation) OtaJobsCleared() bool {
+	return m.clearedota_jobs
+}
+
+// RemoveOtaJobIDs removes the "ota_jobs" edge to the OtaJob entity by IDs.
+func (m *FirmwareReleaseMutation) RemoveOtaJobIDs(ids ...uuid.UUID) {
+	if m.removedota_jobs == nil {
+		m.removedota_jobs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.ota_jobs, ids[i])
+		m.removedota_jobs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedOtaJobs returns the removed IDs of the "ota_jobs" edge to the OtaJob entity.
+func (m *FirmwareReleaseMutation) RemovedOtaJobsIDs() (ids []uuid.UUID) {
+	for id := range m.removedota_jobs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// OtaJobsIDs returns the "ota_jobs" edge IDs in the mutation.
+func (m *FirmwareReleaseMutation) OtaJobsIDs() (ids []uuid.UUID) {
+	for id := range m.ota_jobs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetOtaJobs resets all changes to the "ota_jobs" edge.
+func (m *FirmwareReleaseMutation) ResetOtaJobs() {
+	m.ota_jobs = nil
+	m.clearedota_jobs = false
+	m.removedota_jobs = nil
+}
+
+// Where appends a list predicates to the FirmwareReleaseMutation builder.
+func (m *FirmwareReleaseMutation) Where(ps ...predicate.FirmwareRelease) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the FirmwareReleaseMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *FirmwareReleaseMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.FirmwareRelease, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *FirmwareReleaseMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *FirmwareReleaseMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (FirmwareRelease).
+func (m *FirmwareReleaseMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *FirmwareReleaseMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.version != nil {
+		fields = append(fields, firmwarerelease.FieldVersion)
+	}
+	if m.url != nil {
+		fields = append(fields, firmwarerelease.FieldURL)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, firmwarerelease.FieldSha256)
+	}
+	if m.size != nil {
+		fields = append(fields, firmwarerelease.FieldSize)
+	}
+	if m.notes != nil {
+		fields = append(fields, firmwarerelease.FieldNotes)
+	}
+	if m.created_at != nil {
+		fields = append(fields, firmwarerelease.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *FirmwareReleaseMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case firmwarerelease.FieldVersion:
+		return m.Version()
+	case firmwarerelease.FieldURL:
+		return m.URL()
+	case firmwarerelease.FieldSha256:
+		return m.Sha256()
+	case firmwarerelease.FieldSize:
+		return m.Size()
+	case firmwarerelease.FieldNotes:
+		return m.Notes()
+	case firmwarerelease.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *FirmwareReleaseMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case firmwarerelease.FieldVersion:
+		return m.OldVersion(ctx)
+	case firmwarerelease.FieldURL:
+		return m.OldURL(ctx)
+	case firmwarerelease.FieldSha256:
+		return m.OldSha256(ctx)
+	case firmwarerelease.FieldSize:
+		return m.OldSize(ctx)
+	case firmwarerelease.FieldNotes:
+		return m.OldNotes(ctx)
+	case firmwarerelease.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown FirmwareRelease field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FirmwareReleaseMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case firmwarerelease.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case firmwarerelease.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case firmwarerelease.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	case firmwarerelease.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case firmwarerelease.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case firmwarerelease.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FirmwareRelease field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *FirmwareReleaseMutation) AddedFields() []string {
+	var fields []string
+	if m.addsize != nil {
+		fields = append(fields, firmwarerelease.FieldSize)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *FirmwareReleaseMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case firmwarerelease.FieldSize:
+		return m.AddedSize()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *FirmwareReleaseMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case firmwarerelease.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	}
+	return fmt.Errorf("unknown FirmwareRelease numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *FirmwareReleaseMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *FirmwareReleaseMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *FirmwareReleaseMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown FirmwareRelease nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *FirmwareReleaseMutation) ResetField(name string) error {
+	switch name {
+	case firmwarerelease.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case firmwarerelease.FieldURL:
+		m.ResetURL()
+		return nil
+	case firmwarerelease.FieldSha256:
+		m.ResetSha256()
+		return nil
+	case firmwarerelease.FieldSize:
+		m.ResetSize()
+		return nil
+	case firmwarerelease.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case firmwarerelease.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown FirmwareRelease field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *FirmwareReleaseMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.ota_jobs != nil {
+		edges = append(edges, firmwarerelease.EdgeOtaJobs)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *FirmwareReleaseMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case firmwarerelease.EdgeOtaJobs:
+		ids := make([]ent.Value, 0, len(m.ota_jobs))
+		for id := range m.ota_jobs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *FirmwareReleaseMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedota_jobs != nil {
+		edges = append(edges, firmwarerelease.EdgeOtaJobs)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *FirmwareReleaseMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case firmwarerelease.EdgeOtaJobs:
+		ids := make([]ent.Value, 0, len(m.removedota_jobs))
+		for id := range m.removedota_jobs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *FirmwareReleaseMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedota_jobs {
+		edges = append(edges, firmwarerelease.EdgeOtaJobs)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *FirmwareReleaseMutation) EdgeCleared(name string) bool {
+	switch name {
+	case firmwarerelease.EdgeOtaJobs:
+		return m.clearedota_jobs
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *FirmwareReleaseMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown FirmwareRelease unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *FirmwareReleaseMutation) ResetEdge(name string) error {
+	switch name {
+	case firmwarerelease.EdgeOtaJobs:
+		m.ResetOtaJobs()
+		return nil
+	}
+	return fmt.Errorf("unknown FirmwareRelease edge %s", name)
+}
+
+// OtaJobMutation represents an operation that mutates the OtaJob nodes in the graph.
+type OtaJobMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	status         *otajob.Status
+	progress       *int
+	addprogress    *int
+	error          *string
+	approved_by    *string
+	approved_at    *time.Time
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	device         *uuid.UUID
+	cleareddevice  bool
+	release        *uuid.UUID
+	clearedrelease bool
+	done           bool
+	oldValue       func(context.Context) (*OtaJob, error)
+	predicates     []predicate.OtaJob
+}
+
+var _ ent.Mutation = (*OtaJobMutation)(nil)
+
+// otajobOption allows management of the mutation configuration using functional options.
+type otajobOption func(*OtaJobMutation)
+
+// newOtaJobMutation creates new mutation for the OtaJob entity.
+func newOtaJobMutation(c config, op Op, opts ...otajobOption) *OtaJobMutation {
+	m := &OtaJobMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeOtaJob,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withOtaJobID sets the ID field of the mutation.
+func withOtaJobID(id uuid.UUID) otajobOption {
+	return func(m *OtaJobMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *OtaJob
+		)
+		m.oldValue = func(ctx context.Context) (*OtaJob, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().OtaJob.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withOtaJob sets the old OtaJob of the mutation.
+func withOtaJob(node *OtaJob) otajobOption {
+	return func(m *OtaJobMutation) {
+		m.oldValue = func(context.Context) (*OtaJob, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m OtaJobMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m OtaJobMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of OtaJob entities.
+func (m *OtaJobMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *OtaJobMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *OtaJobMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().OtaJob.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDeviceID sets the "device_id" field.
+func (m *OtaJobMutation) SetDeviceID(u uuid.UUID) {
+	m.device = &u
+}
+
+// DeviceID returns the value of the "device_id" field in the mutation.
+func (m *OtaJobMutation) DeviceID() (r uuid.UUID, exists bool) {
+	v := m.device
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceID returns the old "device_id" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldDeviceID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceID: %w", err)
+	}
+	return oldValue.DeviceID, nil
+}
+
+// ResetDeviceID resets all changes to the "device_id" field.
+func (m *OtaJobMutation) ResetDeviceID() {
+	m.device = nil
+}
+
+// SetReleaseID sets the "release_id" field.
+func (m *OtaJobMutation) SetReleaseID(u uuid.UUID) {
+	m.release = &u
+}
+
+// ReleaseID returns the value of the "release_id" field in the mutation.
+func (m *OtaJobMutation) ReleaseID() (r uuid.UUID, exists bool) {
+	v := m.release
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReleaseID returns the old "release_id" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldReleaseID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReleaseID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReleaseID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReleaseID: %w", err)
+	}
+	return oldValue.ReleaseID, nil
+}
+
+// ResetReleaseID resets all changes to the "release_id" field.
+func (m *OtaJobMutation) ResetReleaseID() {
+	m.release = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *OtaJobMutation) SetStatus(o otajob.Status) {
+	m.status = &o
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *OtaJobMutation) Status() (r otajob.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldStatus(ctx context.Context) (v otajob.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *OtaJobMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetProgress sets the "progress" field.
+func (m *OtaJobMutation) SetProgress(i int) {
+	m.progress = &i
+	m.addprogress = nil
+}
+
+// Progress returns the value of the "progress" field in the mutation.
+func (m *OtaJobMutation) Progress() (r int, exists bool) {
+	v := m.progress
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProgress returns the old "progress" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldProgress(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProgress is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProgress requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProgress: %w", err)
+	}
+	return oldValue.Progress, nil
+}
+
+// AddProgress adds i to the "progress" field.
+func (m *OtaJobMutation) AddProgress(i int) {
+	if m.addprogress != nil {
+		*m.addprogress += i
+	} else {
+		m.addprogress = &i
+	}
+}
+
+// AddedProgress returns the value that was added to the "progress" field in this mutation.
+func (m *OtaJobMutation) AddedProgress() (r int, exists bool) {
+	v := m.addprogress
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProgress resets all changes to the "progress" field.
+func (m *OtaJobMutation) ResetProgress() {
+	m.progress = nil
+	m.addprogress = nil
+}
+
+// SetError sets the "error" field.
+func (m *OtaJobMutation) SetError(s string) {
+	m.error = &s
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *OtaJobMutation) Error() (r string, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ClearError clears the value of the "error" field.
+func (m *OtaJobMutation) ClearError() {
+	m.error = nil
+	m.clearedFields[otajob.FieldError] = struct{}{}
+}
+
+// ErrorCleared returns if the "error" field was cleared in this mutation.
+func (m *OtaJobMutation) ErrorCleared() bool {
+	_, ok := m.clearedFields[otajob.FieldError]
+	return ok
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *OtaJobMutation) ResetError() {
+	m.error = nil
+	delete(m.clearedFields, otajob.FieldError)
+}
+
+// SetApprovedBy sets the "approved_by" field.
+func (m *OtaJobMutation) SetApprovedBy(s string) {
+	m.approved_by = &s
+}
+
+// ApprovedBy returns the value of the "approved_by" field in the mutation.
+func (m *OtaJobMutation) ApprovedBy() (r string, exists bool) {
+	v := m.approved_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedBy returns the old "approved_by" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldApprovedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedBy: %w", err)
+	}
+	return oldValue.ApprovedBy, nil
+}
+
+// ResetApprovedBy resets all changes to the "approved_by" field.
+func (m *OtaJobMutation) ResetApprovedBy() {
+	m.approved_by = nil
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (m *OtaJobMutation) SetApprovedAt(t time.Time) {
+	m.approved_at = &t
+}
+
+// ApprovedAt returns the value of the "approved_at" field in the mutation.
+func (m *OtaJobMutation) ApprovedAt() (r time.Time, exists bool) {
+	v := m.approved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedAt returns the old "approved_at" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldApprovedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedAt: %w", err)
+	}
+	return oldValue.ApprovedAt, nil
+}
+
+// ResetApprovedAt resets all changes to the "approved_at" field.
+func (m *OtaJobMutation) ResetApprovedAt() {
+	m.approved_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *OtaJobMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *OtaJobMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *OtaJobMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *OtaJobMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *OtaJobMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the OtaJob entity.
+// If the OtaJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OtaJobMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *OtaJobMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearDevice clears the "device" edge to the Device entity.
+func (m *OtaJobMutation) ClearDevice() {
+	m.cleareddevice = true
+	m.clearedFields[otajob.FieldDeviceID] = struct{}{}
+}
+
+// DeviceCleared reports if the "device" edge to the Device entity was cleared.
+func (m *OtaJobMutation) DeviceCleared() bool {
+	return m.cleareddevice
+}
+
+// DeviceIDs returns the "device" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DeviceID instead. It exists only for internal usage by the builders.
+func (m *OtaJobMutation) DeviceIDs() (ids []uuid.UUID) {
+	if id := m.device; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDevice resets all changes to the "device" edge.
+func (m *OtaJobMutation) ResetDevice() {
+	m.device = nil
+	m.cleareddevice = false
+}
+
+// ClearRelease clears the "release" edge to the FirmwareRelease entity.
+func (m *OtaJobMutation) ClearRelease() {
+	m.clearedrelease = true
+	m.clearedFields[otajob.FieldReleaseID] = struct{}{}
+}
+
+// ReleaseCleared reports if the "release" edge to the FirmwareRelease entity was cleared.
+func (m *OtaJobMutation) ReleaseCleared() bool {
+	return m.clearedrelease
+}
+
+// ReleaseIDs returns the "release" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ReleaseID instead. It exists only for internal usage by the builders.
+func (m *OtaJobMutation) ReleaseIDs() (ids []uuid.UUID) {
+	if id := m.release; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRelease resets all changes to the "release" edge.
+func (m *OtaJobMutation) ResetRelease() {
+	m.release = nil
+	m.clearedrelease = false
+}
+
+// Where appends a list predicates to the OtaJobMutation builder.
+func (m *OtaJobMutation) Where(ps ...predicate.OtaJob) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the OtaJobMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *OtaJobMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.OtaJob, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *OtaJobMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *OtaJobMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (OtaJob).
+func (m *OtaJobMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *OtaJobMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.device != nil {
+		fields = append(fields, otajob.FieldDeviceID)
+	}
+	if m.release != nil {
+		fields = append(fields, otajob.FieldReleaseID)
+	}
+	if m.status != nil {
+		fields = append(fields, otajob.FieldStatus)
+	}
+	if m.progress != nil {
+		fields = append(fields, otajob.FieldProgress)
+	}
+	if m.error != nil {
+		fields = append(fields, otajob.FieldError)
+	}
+	if m.approved_by != nil {
+		fields = append(fields, otajob.FieldApprovedBy)
+	}
+	if m.approved_at != nil {
+		fields = append(fields, otajob.FieldApprovedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, otajob.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, otajob.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *OtaJobMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case otajob.FieldDeviceID:
+		return m.DeviceID()
+	case otajob.FieldReleaseID:
+		return m.ReleaseID()
+	case otajob.FieldStatus:
+		return m.Status()
+	case otajob.FieldProgress:
+		return m.Progress()
+	case otajob.FieldError:
+		return m.Error()
+	case otajob.FieldApprovedBy:
+		return m.ApprovedBy()
+	case otajob.FieldApprovedAt:
+		return m.ApprovedAt()
+	case otajob.FieldCreatedAt:
+		return m.CreatedAt()
+	case otajob.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *OtaJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case otajob.FieldDeviceID:
+		return m.OldDeviceID(ctx)
+	case otajob.FieldReleaseID:
+		return m.OldReleaseID(ctx)
+	case otajob.FieldStatus:
+		return m.OldStatus(ctx)
+	case otajob.FieldProgress:
+		return m.OldProgress(ctx)
+	case otajob.FieldError:
+		return m.OldError(ctx)
+	case otajob.FieldApprovedBy:
+		return m.OldApprovedBy(ctx)
+	case otajob.FieldApprovedAt:
+		return m.OldApprovedAt(ctx)
+	case otajob.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case otajob.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown OtaJob field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *OtaJobMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case otajob.FieldDeviceID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceID(v)
+		return nil
+	case otajob.FieldReleaseID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReleaseID(v)
+		return nil
+	case otajob.FieldStatus:
+		v, ok := value.(otajob.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case otajob.FieldProgress:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProgress(v)
+		return nil
+	case otajob.FieldError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case otajob.FieldApprovedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedBy(v)
+		return nil
+	case otajob.FieldApprovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedAt(v)
+		return nil
+	case otajob.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case otajob.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown OtaJob field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *OtaJobMutation) AddedFields() []string {
+	var fields []string
+	if m.addprogress != nil {
+		fields = append(fields, otajob.FieldProgress)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *OtaJobMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case otajob.FieldProgress:
+		return m.AddedProgress()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *OtaJobMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case otajob.FieldProgress:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProgress(v)
+		return nil
+	}
+	return fmt.Errorf("unknown OtaJob numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *OtaJobMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(otajob.FieldError) {
+		fields = append(fields, otajob.FieldError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *OtaJobMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *OtaJobMutation) ClearField(name string) error {
+	switch name {
+	case otajob.FieldError:
+		m.ClearError()
+		return nil
+	}
+	return fmt.Errorf("unknown OtaJob nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *OtaJobMutation) ResetField(name string) error {
+	switch name {
+	case otajob.FieldDeviceID:
+		m.ResetDeviceID()
+		return nil
+	case otajob.FieldReleaseID:
+		m.ResetReleaseID()
+		return nil
+	case otajob.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case otajob.FieldProgress:
+		m.ResetProgress()
+		return nil
+	case otajob.FieldError:
+		m.ResetError()
+		return nil
+	case otajob.FieldApprovedBy:
+		m.ResetApprovedBy()
+		return nil
+	case otajob.FieldApprovedAt:
+		m.ResetApprovedAt()
+		return nil
+	case otajob.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case otajob.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown OtaJob field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *OtaJobMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.device != nil {
+		edges = append(edges, otajob.EdgeDevice)
+	}
+	if m.release != nil {
+		edges = append(edges, otajob.EdgeRelease)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *OtaJobMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case otajob.EdgeDevice:
+		if id := m.device; id != nil {
+			return []ent.Value{*id}
+		}
+	case otajob.EdgeRelease:
+		if id := m.release; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *OtaJobMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *OtaJobMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *OtaJobMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareddevice {
+		edges = append(edges, otajob.EdgeDevice)
+	}
+	if m.clearedrelease {
+		edges = append(edges, otajob.EdgeRelease)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *OtaJobMutation) EdgeCleared(name string) bool {
+	switch name {
+	case otajob.EdgeDevice:
+		return m.cleareddevice
+	case otajob.EdgeRelease:
+		return m.clearedrelease
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *OtaJobMutation) ClearEdge(name string) error {
+	switch name {
+	case otajob.EdgeDevice:
+		m.ClearDevice()
+		return nil
+	case otajob.EdgeRelease:
+		m.ClearRelease()
+		return nil
+	}
+	return fmt.Errorf("unknown OtaJob unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *OtaJobMutation) ResetEdge(name string) error {
+	switch name {
+	case otajob.EdgeDevice:
+		m.ResetDevice()
+		return nil
+	case otajob.EdgeRelease:
+		m.ResetRelease()
+		return nil
+	}
+	return fmt.Errorf("unknown OtaJob edge %s", name)
 }

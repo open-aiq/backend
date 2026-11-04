@@ -35,9 +35,21 @@ type Device struct {
 	IsPublic         bool      `json:"is_public" example:"false"`
 	IsLocationPublic bool      `json:"is_location_public" example:"false"`
 	// FirmwareVersion is the version the device last reported; null until it reports one.
-	FirmwareVersion *string   `json:"firmware_version" example:"0.1.0"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	FirmwareVersion *string `json:"firmware_version" example:"0.1.0"`
+	// Ota summarizes the device's firmware-update state in listings; null when unknown.
+	Ota       *OtaSummary `json:"ota"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}
+
+// OtaSummary is the firmware-update badge state of a device.
+type OtaSummary struct {
+	// Status is one of: up_to_date, update_available, approved, downloading,
+	// installing, failed.
+	Status string `json:"status" example:"update_available" enums:"up_to_date,update_available,approved,downloading,installing,failed"`
+	// Version is the release the status refers to (the available or in-progress one).
+	Version  string `json:"version,omitempty" example:"0.2.0"`
+	Progress *int   `json:"progress,omitempty" example:"40"`
 }
 
 // PublicDevice deliberately excludes owner_id and the physical device_id.

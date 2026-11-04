@@ -28,7 +28,9 @@ type Config struct {
 	// ClerkAllowNativeClients accepts Clerk session tokens without an azp claim,
 	// which is how tokens issued to the mobile app look.
 	ClerkAllowNativeClients bool `env:"CLERK_ALLOW_NATIVE_CLIENTS,required"`
-	DB                      DBConfig
+	// FirmwarePublishToken authorizes POST /firmware/releases (CI / make release).
+	FirmwarePublishToken string `env:"FIRMWARE_PUBLISH_TOKEN,required" mod:"trim" validate:"required,min=32"`
+	DB                   DBConfig
 }
 
 type DBConfig struct {

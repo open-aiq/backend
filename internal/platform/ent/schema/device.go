@@ -73,6 +73,8 @@ func (Device) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("readings", DeviceReading.Type).
 			Annotations(entsql.OnDelete(entsql.Cascade)),
+		edge.To("ota_jobs", OtaJob.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("logs", DeviceLog.Type).
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 	}
