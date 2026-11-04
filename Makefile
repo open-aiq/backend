@@ -25,13 +25,13 @@ DIST           ?= dist
 BINARY         ?= server
 PLATFORMS      ?= linux/amd64 linux/arm64 darwin/arm64
 
-.PHONY: help init dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-backup db-backups-clean db-clean db-logs db-shell
+.PHONY: help init dev dev\:raw format\:fix format\:check lint\:check lint\:fix test verify swagger\:gen build build\:run build\:clean orm\:gen migration\:gen migration\:apply require-database-url db\:seed db\:up db\:down db\:backup db\:backups\:clean db\:clean db\:logs db\:shell release
 
 ## help: Show available commands
 help:
 	@echo "Available commands:"
 	@echo ""
-	@sed -n 's/^## //p' $(MAKEFILE_LIST) | column -t -s ':' | sed 's/^/  /'
+	@sed -n 's/^## //p' $(MAKEFILE_LIST) | awk '{ i = index($$0, ": "); if (i) printf "  %-20s %s\n", substr($$0, 1, i - 1), substr($$0, i + 2); else print "" }'
 
 ## init: install deps and setup the path, run this command before starting the work
 init:
@@ -49,34 +49,66 @@ init:
 dev:
 	@"$(AIR)" 2>&1 | "$(HL)" -P -L
 
-## swagger: Generate swagger docs
-swagger:
+## dev:raw: Same as dev, but prints the raw JSON log lines
+dev\:raw:
+	"$(AIR)"
+
+## format:fix: Format Go sources with gofmt
+format\:fix:
+	gofmt -w cmd internal
+
+## format:check: Check Go formatting without changing files
+format\:check:
+	@files="$$(gofmt -l cmd internal)"; [ -z "$$files" ] || { echo "not gofmt-formatted:"; echo "$$files"; exit 1; }
+
+## lint:check: Run go vet
+lint\:check:
+	go vet ./...
+
+## lint:fix: Apply go fix's automatic modernizations
+lint\:fix:
+	go fix ./...
+
+## test: Run the Go tests
+test:
+	go test ./...
+
+## verify: Run format:check, lint:check and test
+verify:
+	@$(MAKE) --no-print-directory format:check
+	@$(MAKE) --no-print-directory lint:check
+	@$(MAKE) --no-print-directory test
+
+## swagger:gen: Generate swagger docs
+swagger\:gen:
 	"$(SWAG)" init -g cmd/server/main.go -o docs
 	go run ./cmd/problemgen -out docs/problems.json
 
 
 ## build: Regenerate code, generate swagger, and build the binary
-build: generate swagger
+build:
+	@$(MAKE) --no-print-directory orm:gen
+	@$(MAKE) --no-print-directory swagger:gen
 	go build -o bin/server ./cmd/server/
 
-## build-run: Build and run the server
-build-run: build
+## build:run: Build and run the server
+build\:run: build
 	./bin/server
 
-## build-clean: Remove build artifacts
-build-clean:
+## build:clean: Remove build artifacts
+build\:clean:
 	rm -rf bin/ tmp/ $(DIST)/
 
-## orm-gen: Regenerate the Ent client after editing a schema (internal/platform/ent/schema/)
-orm-gen:
+## orm:gen: Regenerate the Ent client after editing a schema (internal/platform/ent/schema/)
+orm\:gen:
 	go generate ./internal/platform/ent
 
-## migration-gen: Generate a versioned migration from schema changes. usage: make migration-gen name=<description>
+## migration:gen: Generate a versioned migration from schema changes. usage: make migration:gen name=<description>
 # Atlas's docker:// driver always invokes a binary named "docker". The target
 # creates a temporary PATH entry with that name pointing to ENGINE (Podman by
 # default), then removes it when migration generation finishes.
-migration-gen:
-	@test -n "$(name)" || { echo "usage: make migration-gen name=<description>"; exit 1; }
+migration\:gen:
+	@test -n "$(name)" || { echo "usage: make migration:gen name=<description>"; exit 1; }
 	@command -v "$(ENGINE)" >/dev/null || { echo "container engine '$(ENGINE)' is not installed"; exit 1; }
 	@set -eu; \
 		cli_dir="$$(mktemp -d)"; \
@@ -84,8 +116,8 @@ migration-gen:
 		ln -s "$$(command -v "$(ENGINE)")" "$$cli_dir/docker"; \
 		PATH="$$cli_dir:$$PATH" "$(ATLAS)" migrate diff "$(name)" --env defaultConfig
 
-## migration-apply: Apply all pending migrations to DATABASE_URL
-migration-apply: require-database-url
+## migration:apply: Apply all pending migrations to DATABASE_URL
+migration\:apply: require-database-url
 	"$(ATLAS)" migrate apply --env defaultConfig --url "$(DATABASE_URL)"
 
 
@@ -98,13 +130,13 @@ require-database-url:
 	  exit 1; \
 	fi
 
-## seed: Seed mock readings and map-enable a device — usage: make seed device=dev_<id> [map=false]
-db-seed: require-database-url
-	@test -n "$(device)" || { echo "usage: make seed device=dev_<id>"; exit 1; }
+## db:seed: Seed mock readings and map-enable a device — usage: make db:seed device=dev_<id> [map=false]
+db\:seed: require-database-url
+	@test -n "$(device)" || { echo "usage: make db:seed device=dev_<id>"; exit 1; }
 	@DEVICE_ID="$(device)" DATABASE_URL="$(DATABASE_URL)" ENGINE="$(ENGINE)" CONTAINER="$(CONTAINER)" MAP_VISIBLE="$(if $(map),$(map),true)" bash scripts/seed_readings.sh
 
-## db-up: Start the PostgreSQL container (creds derived from DATABASE_URL)
-db-up: require-database-url
+## db:up: Start the PostgreSQL container (creds derived from DATABASE_URL)
+db\:up: require-database-url
 	@set -e; \
 	url="$(DATABASE_URL)"; \
 	creds="$${url#*://}"; \
@@ -151,12 +183,12 @@ db-up: require-database-url
 	done; \
 	echo "$(CONTAINER) is healthy."
 
-## db-down: Stop and remove the PostgreSQL container (data volume is kept)
-db-down:
+## db:down: Stop and remove the PostgreSQL container (data volume is kept)
+db\:down:
 	$(ENGINE) rm -f $(CONTAINER)
 
-## db-backup: Back up the container database to backups/ in PostgreSQL custom format
-db-backup:
+## db:backup: Back up the container database to backups/ in PostgreSQL custom format
+db\:backup:
 	@set -eu; \
 		mkdir -p "$(BACKUP_DIR)"; \
 		backup="$(BACKUP_DIR)/openaiq-backup-$$(date -u +%Y-%m-%d_%H-%M-%S_UTC).dump"; \
@@ -168,8 +200,8 @@ db-backup:
 		trap - EXIT; \
 		echo "Database backup created: $$backup"
 
-## db-backups-clean: Delete all Open AIQ backup files after interactive confirmation
-db-backups-clean:
+## db:backups:clean: Delete all Open AIQ backup files after interactive confirmation
+db\:backups\:clean:
 	@set -eu; \
 		if [ ! -d "$(BACKUP_DIR)" ]; then \
 			echo "No backup directory found: $(BACKUP_DIR)"; \
@@ -191,20 +223,20 @@ db-backups-clean:
 		find "$(BACKUP_DIR)" -maxdepth 1 -type f -name 'openaiq-*.dump' -delete; \
 		echo "Open AIQ backups deleted."
 
-## db-clean: Back up the database, recreate its container and volume, then start fresh
-db-clean: require-database-url
-	@$(MAKE) db-backup
-	@$(MAKE) db-down
+## db:clean: Back up the database, recreate its container and volume, then start fresh
+db\:clean: require-database-url
+	@$(MAKE) db:backup
+	@$(MAKE) db:down
 	@$(ENGINE) volume rm $(CONTAINER_VOLUME)
-	@$(MAKE) db-up
-	@$(MAKE) migrate-up
+	@$(MAKE) db:up
+	@$(MAKE) migration:apply
 
-## db-logs: Tail the PostgreSQL container logs
-db-logs:
+## db:logs: Tail the PostgreSQL container logs
+db\:logs:
 	$(ENGINE) logs -f $(CONTAINER)
 
-## db-shell: Open a psql shell in the PostgreSQL container
-db-shell: require-database-url
+## db:shell: Open a psql shell in the PostgreSQL container
+db\:shell: require-database-url
 	@$(ENGINE) exec -it $(CONTAINER) psql -d "$(DATABASE_URL)"
 
 
