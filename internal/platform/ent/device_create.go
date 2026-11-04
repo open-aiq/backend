@@ -90,6 +90,20 @@ func (_c *DeviceCreate) SetNillableIsLocationPublic(v *bool) *DeviceCreate {
 	return _c
 }
 
+// SetFirmwareVersion sets the "firmware_version" field.
+func (_c *DeviceCreate) SetFirmwareVersion(v string) *DeviceCreate {
+	_c.mutation.SetFirmwareVersion(v)
+	return _c
+}
+
+// SetNillableFirmwareVersion sets the "firmware_version" field if the given value is not nil.
+func (_c *DeviceCreate) SetNillableFirmwareVersion(v *string) *DeviceCreate {
+	if v != nil {
+		_c.SetFirmwareVersion(*v)
+	}
+	return _c
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (_c *DeviceCreate) SetDeviceKey(v string) *DeviceCreate {
 	_c.mutation.SetDeviceKey(v)
@@ -241,6 +255,11 @@ func (_c *DeviceCreate) check() error {
 	if _, ok := _c.mutation.IsLocationPublic(); !ok {
 		return &ValidationError{Name: "is_location_public", err: errors.New(`ent: missing required field "Device.is_location_public"`)}
 	}
+	if v, ok := _c.mutation.FirmwareVersion(); ok {
+		if err := device.FirmwareVersionValidator(v); err != nil {
+			return &ValidationError{Name: "firmware_version", err: fmt.Errorf(`ent: validator failed for field "Device.firmware_version": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.DeviceKey(); !ok {
 		return &ValidationError{Name: "device_key", err: errors.New(`ent: missing required field "Device.device_key"`)}
 	}
@@ -313,6 +332,10 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsLocationPublic(); ok {
 		_spec.SetField(device.FieldIsLocationPublic, field.TypeBool, value)
 		_node.IsLocationPublic = value
+	}
+	if value, ok := _c.mutation.FirmwareVersion(); ok {
+		_spec.SetField(device.FieldFirmwareVersion, field.TypeString, value)
+		_node.FirmwareVersion = &value
 	}
 	if value, ok := _c.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)

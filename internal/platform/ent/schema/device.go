@@ -48,6 +48,11 @@ func (Device) Fields() []ent.Field {
 		field.Bool("is_location_public").
 			Default(false).
 			Comment("Whether the owner explicitly shares the device's exact telemetry location publicly"),
+		field.String("firmware_version").
+			Optional().
+			Nillable().
+			MaxLen(32).
+			Comment("Firmware version last reported in the X-Firmware-Version header; null until the device reports one"),
 		field.String("device_key").
 			NotEmpty().
 			Sensitive().

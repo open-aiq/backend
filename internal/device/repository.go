@@ -30,6 +30,8 @@ type Repository interface {
 	// internal id. It returns an ent.NotFoundError (see ent.IsNotFound) if no
 	// such device exists.
 	UpdateKey(ctx context.Context, ownerID string, id uuid.UUID, deviceKeyHash string) (*ent.Device, error)
+	// SetFirmwareVersion records the firmware version a device reported.
+	SetFirmwareVersion(ctx context.Context, id uuid.UUID, version string) error
 	// Delete removes the device with the given internal id. It returns an
 	// ent.NotFoundError (see ent.IsNotFound) if no such device exists.
 	Delete(ctx context.Context, ownerID string, id uuid.UUID) error
@@ -105,6 +107,10 @@ func (r *entRepository) UpdateKey(ctx context.Context, ownerID string, id uuid.U
 		return nil, err
 	}
 	return d.Update().SetDeviceKey(deviceKeyHash).Save(ctx)
+}
+
+func (r *entRepository) SetFirmwareVersion(ctx context.Context, id uuid.UUID, version string) error {
+	return r.client.Device.UpdateOneID(id).SetFirmwareVersion(version).Exec(ctx)
 }
 
 func (r *entRepository) Delete(ctx context.Context, ownerID string, id uuid.UUID) error {

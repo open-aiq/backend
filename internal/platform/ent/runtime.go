@@ -37,16 +37,20 @@ func init() {
 	deviceDescIsLocationPublic := deviceFields[6].Descriptor()
 	// device.DefaultIsLocationPublic holds the default value on creation for the is_location_public field.
 	device.DefaultIsLocationPublic = deviceDescIsLocationPublic.Default.(bool)
+	// deviceDescFirmwareVersion is the schema descriptor for firmware_version field.
+	deviceDescFirmwareVersion := deviceFields[7].Descriptor()
+	// device.FirmwareVersionValidator is a validator for the "firmware_version" field. It is called by the builders before save.
+	device.FirmwareVersionValidator = deviceDescFirmwareVersion.Validators[0].(func(string) error)
 	// deviceDescDeviceKey is the schema descriptor for device_key field.
-	deviceDescDeviceKey := deviceFields[7].Descriptor()
+	deviceDescDeviceKey := deviceFields[8].Descriptor()
 	// device.DeviceKeyValidator is a validator for the "device_key" field. It is called by the builders before save.
 	device.DeviceKeyValidator = deviceDescDeviceKey.Validators[0].(func(string) error)
 	// deviceDescCreatedAt is the schema descriptor for created_at field.
-	deviceDescCreatedAt := deviceFields[8].Descriptor()
+	deviceDescCreatedAt := deviceFields[9].Descriptor()
 	// device.DefaultCreatedAt holds the default value on creation for the created_at field.
 	device.DefaultCreatedAt = deviceDescCreatedAt.Default.(func() time.Time)
 	// deviceDescUpdatedAt is the schema descriptor for updated_at field.
-	deviceDescUpdatedAt := deviceFields[9].Descriptor()
+	deviceDescUpdatedAt := deviceFields[10].Descriptor()
 	// device.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	device.DefaultUpdatedAt = deviceDescUpdatedAt.Default.(func() time.Time)
 	// device.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

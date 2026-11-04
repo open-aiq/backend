@@ -1162,6 +1162,11 @@
                     "type": "string",
                     "example": "dev_9f1c8a3b4d2e4f0a5b6c7d8e9f001122"
                 },
+                "firmware_version": {
+                    "description": "FirmwareVersion is the version the device last reported; null until it reports one.",
+                    "type": "string",
+                    "example": "0.1.0"
+                },
                 "id": {
                     "type": "string"
                 },

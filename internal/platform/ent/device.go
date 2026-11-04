@@ -31,6 +31,8 @@ type Device struct {
 	IsPublic bool `json:"is_public,omitempty"`
 	// Whether the owner explicitly shares the device's exact telemetry location publicly
 	IsLocationPublic bool `json:"is_location_public,omitempty"`
+	// Firmware version last reported in the X-Firmware-Version header; null until the device reports one
+	FirmwareVersion *string `json:"firmware_version,omitempty"`
 	// Hex SHA-256 digest of the secret device key ("sk_<random>"); the raw key is shown once at creation/rotation and never stored
 	DeviceKey string `json:"-"`
 	// When the device was registered
@@ -68,7 +70,7 @@ func (*Device) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case device.FieldIsOutdoor, device.FieldIsPublic, device.FieldIsLocationPublic:
 			values[i] = new(sql.NullBool)
-		case device.FieldDeviceID, device.FieldName, device.FieldOwnerID, device.FieldDeviceKey:
+		case device.FieldDeviceID, device.FieldName, device.FieldOwnerID, device.FieldFirmwareVersion, device.FieldDeviceKey:
 			values[i] = new(sql.NullString)
 		case device.FieldCreatedAt, device.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -131,6 +133,13 @@ func (_m *Device) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_location_public", values[i])
 			} else if value.Valid {
 				_m.IsLocationPublic = value.Bool
+			}
+		case device.FieldFirmwareVersion:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field firmware_version", values[i])
+			} else if value.Valid {
+				_m.FirmwareVersion = new(string)
+				*_m.FirmwareVersion = value.String
 			}
 		case device.FieldDeviceKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -210,6 +219,11 @@ func (_m *Device) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_location_public=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsLocationPublic))
+	builder.WriteString(", ")
+	if v := _m.FirmwareVersion; v != nil {
+		builder.WriteString("firmware_version=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("device_key=<sensitive>")
 	builder.WriteString(", ")

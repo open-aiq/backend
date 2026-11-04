@@ -42,6 +42,7 @@ type DeviceMutation struct {
 	is_outdoor         *bool
 	is_public          *bool
 	is_location_public *bool
+	firmware_version   *string
 	device_key         *string
 	created_at         *time.Time
 	updated_at         *time.Time
@@ -387,6 +388,55 @@ func (m *DeviceMutation) ResetIsLocationPublic() {
 	m.is_location_public = nil
 }
 
+// SetFirmwareVersion sets the "firmware_version" field.
+func (m *DeviceMutation) SetFirmwareVersion(s string) {
+	m.firmware_version = &s
+}
+
+// FirmwareVersion returns the value of the "firmware_version" field in the mutation.
+func (m *DeviceMutation) FirmwareVersion() (r string, exists bool) {
+	v := m.firmware_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirmwareVersion returns the old "firmware_version" field's value of the Device entity.
+// If the Device object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceMutation) OldFirmwareVersion(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirmwareVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirmwareVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirmwareVersion: %w", err)
+	}
+	return oldValue.FirmwareVersion, nil
+}
+
+// ClearFirmwareVersion clears the value of the "firmware_version" field.
+func (m *DeviceMutation) ClearFirmwareVersion() {
+	m.firmware_version = nil
+	m.clearedFields[device.FieldFirmwareVersion] = struct{}{}
+}
+
+// FirmwareVersionCleared returns if the "firmware_version" field was cleared in this mutation.
+func (m *DeviceMutation) FirmwareVersionCleared() bool {
+	_, ok := m.clearedFields[device.FieldFirmwareVersion]
+	return ok
+}
+
+// ResetFirmwareVersion resets all changes to the "firmware_version" field.
+func (m *DeviceMutation) ResetFirmwareVersion() {
+	m.firmware_version = nil
+	delete(m.clearedFields, device.FieldFirmwareVersion)
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (m *DeviceMutation) SetDeviceKey(s string) {
 	m.device_key = &s
@@ -583,7 +633,7 @@ func (m *DeviceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeviceMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.device_id != nil {
 		fields = append(fields, device.FieldDeviceID)
 	}
@@ -601,6 +651,9 @@ func (m *DeviceMutation) Fields() []string {
 	}
 	if m.is_location_public != nil {
 		fields = append(fields, device.FieldIsLocationPublic)
+	}
+	if m.firmware_version != nil {
+		fields = append(fields, device.FieldFirmwareVersion)
 	}
 	if m.device_key != nil {
 		fields = append(fields, device.FieldDeviceKey)
@@ -631,6 +684,8 @@ func (m *DeviceMutation) Field(name string) (ent.Value, bool) {
 		return m.IsPublic()
 	case device.FieldIsLocationPublic:
 		return m.IsLocationPublic()
+	case device.FieldFirmwareVersion:
+		return m.FirmwareVersion()
 	case device.FieldDeviceKey:
 		return m.DeviceKey()
 	case device.FieldCreatedAt:
@@ -658,6 +713,8 @@ func (m *DeviceMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldIsPublic(ctx)
 	case device.FieldIsLocationPublic:
 		return m.OldIsLocationPublic(ctx)
+	case device.FieldFirmwareVersion:
+		return m.OldFirmwareVersion(ctx)
 	case device.FieldDeviceKey:
 		return m.OldDeviceKey(ctx)
 	case device.FieldCreatedAt:
@@ -715,6 +772,13 @@ func (m *DeviceMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsLocationPublic(v)
 		return nil
+	case device.FieldFirmwareVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirmwareVersion(v)
+		return nil
 	case device.FieldDeviceKey:
 		v, ok := value.(string)
 		if !ok {
@@ -769,6 +833,9 @@ func (m *DeviceMutation) ClearedFields() []string {
 	if m.FieldCleared(device.FieldOwnerID) {
 		fields = append(fields, device.FieldOwnerID)
 	}
+	if m.FieldCleared(device.FieldFirmwareVersion) {
+		fields = append(fields, device.FieldFirmwareVersion)
+	}
 	return fields
 }
 
@@ -785,6 +852,9 @@ func (m *DeviceMutation) ClearField(name string) error {
 	switch name {
 	case device.FieldOwnerID:
 		m.ClearOwnerID()
+		return nil
+	case device.FieldFirmwareVersion:
+		m.ClearFirmwareVersion()
 		return nil
 	}
 	return fmt.Errorf("unknown Device nullable field %s", name)
@@ -811,6 +881,9 @@ func (m *DeviceMutation) ResetField(name string) error {
 		return nil
 	case device.FieldIsLocationPublic:
 		m.ResetIsLocationPublic()
+		return nil
+	case device.FieldFirmwareVersion:
+		m.ResetFirmwareVersion()
 		return nil
 	case device.FieldDeviceKey:
 		m.ResetDeviceKey()

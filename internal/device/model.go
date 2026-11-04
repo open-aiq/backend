@@ -34,8 +34,10 @@ type Device struct {
 	IsOutdoor        bool      `json:"is_outdoor" example:"false"`
 	IsPublic         bool      `json:"is_public" example:"false"`
 	IsLocationPublic bool      `json:"is_location_public" example:"false"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	// FirmwareVersion is the version the device last reported; null until it reports one.
+	FirmwareVersion *string   `json:"firmware_version" example:"0.1.0"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // PublicDevice deliberately excludes owner_id and the physical device_id.

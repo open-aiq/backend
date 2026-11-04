@@ -153,18 +153,41 @@ func (s *Service) RotateKey(ctx context.Context, ownerID string, id uuid.UUID) (
 // Authenticate verifies a device_id/device_key pair and returns the device's
 // internal id on success, or ErrInvalidCredentials otherwise.
 func (s *Service) Authenticate(ctx context.Context, deviceID, deviceKey string) (uuid.UUID, error) {
+	d, err := s.authenticate(ctx, deviceID, deviceKey)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return d.ID, nil
+}
+
+// AuthenticateDevice authenticates a device (see Authenticate) and records the
+// firmware version it reported when that changed. An empty version is ignored.
+func (s *Service) AuthenticateDevice(ctx context.Context, deviceID, deviceKey, firmwareVersion string) (uuid.UUID, error) {
+	d, err := s.authenticate(ctx, deviceID, deviceKey)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if firmwareVersion != "" && (d.FirmwareVersion == nil || *d.FirmwareVersion != firmwareVersion) {
+		if err := s.repo.SetFirmwareVersion(ctx, d.ID, firmwareVersion); err != nil {
+			return uuid.Nil, fmt.Errorf("record firmware version: %w", err)
+		}
+	}
+	return d.ID, nil
+}
+
+func (s *Service) authenticate(ctx context.Context, deviceID, deviceKey string) (*ent.Device, error) {
 	d, err := s.repo.GetByDeviceID(ctx, deviceID)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return uuid.Nil, ErrInvalidCredentials
+			return nil, ErrInvalidCredentials
 		}
-		return uuid.Nil, fmt.Errorf("get device: %w", err)
+		return nil, fmt.Errorf("get device: %w", err)
 	}
 
 	if subtle.ConstantTimeCompare([]byte(d.DeviceKey), []byte(hashDeviceKey(deviceKey))) != 1 {
-		return uuid.Nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
-	return d.ID, nil
+	return d, nil
 }
 
 // Delete removes a device by its internal id. It returns ErrDeviceNotFound if no
@@ -230,6 +253,7 @@ func toDevice(d *ent.Device) Device {
 		IsOutdoor:        d.IsOutdoor,
 		IsPublic:         d.IsPublic,
 		IsLocationPublic: d.IsLocationPublic,
+		FirmwareVersion:  d.FirmwareVersion,
 		CreatedAt:        d.CreatedAt,
 		UpdatedAt:        d.UpdatedAt,
 	}
