@@ -210,6 +210,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Firmware version running on the device, e.g. 0.2.0",
+                        "name": "X-Firmware-Version",
+                        "in": "header"
+                    },
+                    {
                         "description": "Sensor reading",
                         "name": "request",
                         "in": "body",

@@ -1,66 +1,25 @@
 package devicereading
 
 import (
-	"context"
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
-	"go-aiq-backend/internal/device"
 	"go-aiq-backend/internal/platform/input"
+	"go-aiq-backend/internal/platform/middleware"
 	"go-aiq-backend/internal/platform/problem"
 )
-
-// Header names a device authenticates with, and the context key the middleware
-// stores the authenticated device's internal id under.
-const (
-	headerDeviceID  = "X-Device-ID"
-	headerDeviceKey = "X-Device-Key"
-	ctxDeviceID     = "devicereading.device_id"
-)
-
-// Authenticator verifies device credentials and returns the device's internal
-// id. Implemented by device.Service; wired in main.go.
-type Authenticator interface {
-	Authenticate(ctx context.Context, deviceID, deviceKey string) (uuid.UUID, error)
-}
 
 // Handler holds dependencies for device reading HTTP handlers.
 type Handler struct {
 	service *Service
-	auth    Authenticator
+	auth    middleware.DeviceAuthenticator
 }
 
-// NewHandler creates a new device reading handler.
-func NewHandler(service *Service, auth Authenticator) *Handler {
+// NewHandler creates a new device reading handler. auth authenticates uploads
+// (implemented by device.Service; wired in main.go).
+func NewHandler(service *Service, auth middleware.DeviceAuthenticator) *Handler {
 	return &Handler{service: service, auth: auth}
-}
-
-// deviceAuth authenticates the request via the X-Device-ID / X-Device-Key
-// headers and stores the device's internal id in the context.
-func (h *Handler) deviceAuth(c *gin.Context) {
-	deviceID := c.GetHeader(headerDeviceID)
-	deviceKey := c.GetHeader(headerDeviceKey)
-	if deviceID == "" || deviceKey == "" {
-		problem.Abort(c, problem.Unauthorized, headerDeviceID+" and "+headerDeviceKey+" headers are required.")
-		return
-	}
-
-	id, err := h.auth.Authenticate(c.Request.Context(), deviceID, deviceKey)
-	if err != nil {
-		if errors.Is(err, device.ErrInvalidCredentials) {
-			problem.Abort(c, problem.Unauthorized, "Invalid device credentials.")
-			return
-		}
-		_ = c.Error(err)
-		problem.Abort(c, problem.Internal, "Failed to authenticate device.")
-		return
-	}
-
-	c.Set(ctxDeviceID, id)
-	c.Next()
 }
 
 // Upload godoc
@@ -73,6 +32,7 @@ func (h *Handler) deviceAuth(c *gin.Context) {
 //
 // @Param X-Device-ID header string true "Public device id (dev_...)"
 // @Param X-Device-Key header string true "Secret device key (sk_...)"
+// @Param X-Firmware-Version header string false "Firmware version running on the device, e.g. 0.2.0"
 // @Param request body UploadRequest true "Sensor reading"
 //
 // @Success 201 {object} UploadResponse
@@ -93,7 +53,7 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 
-	deviceID := c.MustGet(ctxDeviceID).(uuid.UUID)
+	deviceID := middleware.DeviceID(c)
 
 	created, err := h.service.Ingest(c.Request.Context(), deviceID, &req)
 	if err != nil {
