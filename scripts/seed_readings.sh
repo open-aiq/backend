@@ -17,7 +17,7 @@
 # to exact location sharing so it appears on the community map. Pass map=false
 # to preserve its current visibility settings.
 #
-# Intended to be run via `make seed device=dev_...`, which passes the
+# Intended to be run via `make db:seed device=dev_...`, which passes the
 # environment below.
 #
 set -euo pipefail
@@ -41,7 +41,7 @@ case "$MAP_VISIBLE" in true|false) ;; *) die "MAP_VISIBLE must be true or false"
 
 command -v "$ENGINE" >/dev/null 2>&1 || die "container engine '$ENGINE' is not installed"
 "$ENGINE" inspect "$CONTAINER" >/dev/null 2>&1 ||
-	die "container '$CONTAINER' is not running. Start it with: make db-up"
+	die "container '$CONTAINER' is not running. Start it with: make db:up"
 
 # Derive the psql user/database from DATABASE_URL (postgres://user:pass@host:port/db?...).
 creds="${DATABASE_URL#*://}"

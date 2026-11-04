@@ -8,7 +8,7 @@ Air quality monitoring API built with Go, Gin, and Ent (PostgreSQL).
 
 - Go 1.26+
 - Docker (for PostgreSQL)
-- [`air`](https://github.com/air-verse/air) and [`swag`](https://github.com/swaggo/swag) for live reload and Swagger generation (only needed for `make dev` / `make swagger`)
+- [`air`](https://github.com/air-verse/air) and [`swag`](https://github.com/swaggo/swag) for live reload and Swagger generation (only needed for `make dev` / `make swagger:gen`)
 
 ## Commands
 
@@ -41,17 +41,17 @@ and descriptions — it is the single source of truth for configuration.
 
 PostgreSQL runs in a Docker container whose user, password, database, and port are
 derived from `DATABASE_URL` in your `.env`, so there's nothing to configure twice.
-Start it and manage it with the `db-*` targets in `make help`.
+Start it and manage it with the `db:*` targets in `make help`.
 
-Create a PostgreSQL custom-format backup with `make db-backup`. Backups use
+Create a PostgreSQL custom-format backup with `make db:backup`. Backups use
 readable UTC filenames such as
 `backups/openaiq-backup-2026-09-07_04-30-00_UTC.dump`. To remove all Open AIQ
-backups, run `make db-backups-clean`; it lists the files and asks for confirmation
+backups, run `make db:backups:clean`; it lists the files and asks for confirmation
 before deleting anything.
 
 The schema is managed with [Ent](https://entgo.io) and auto-migrated on startup, so
 no manual migration step is needed in development. After editing a schema in
-`internal/platform/ent/schema/`, regenerate the Ent client with `make generate`
+`internal/platform/ent/schema/`, regenerate the Ent client with `make orm:gen`
 (also run automatically by `make build`).
 
 ### Existing device ownership backfill
@@ -116,7 +116,7 @@ Swagger UI: http://localhost:8080/swagger/index.html
 
 API failures use [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
 with the `application/problem+json` media type. The canonical error catalog is
-generated from `internal/platform/problem` by `make swagger` and published at
+generated from `internal/platform/problem` by `make swagger:gen` and published at
 [docs.air-iq.net/reference/errors](https://docs.air-iq.net/reference/errors/).
 
 ## Public map and location privacy
@@ -129,7 +129,7 @@ automatically revokes that consent. Existing and newly migrated devices default
 to private location.
 
 For a map-ready local dataset, choose an existing device ID from the dashboard
-and run `make seed device=dev_<id>`. This inserts chart history plus a current
+and run `make db:seed device=dev_<id>`. This inserts chart history plus a current
 Karachi location and enables both public visibility flags. Use
-`make seed device=dev_<id> map=false` when readings should be added without
+`make db:seed device=dev_<id> map=false` when readings should be added without
 changing that device's visibility.
