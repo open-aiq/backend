@@ -35,6 +35,13 @@
     "type": "https://docs.air-iq.net/reference/errors/#no-readings"
   },
   {
+    "slug": "conflict",
+    "title": "Conflict",
+    "status": 409,
+    "description": "The request conflicts with the current state of the resource.",
+    "type": "https://docs.air-iq.net/reference/errors/#conflict"
+  },
+  {
     "slug": "content-too-large",
     "title": "Request content too large",
     "status": 413,
@@ -47,6 +54,13 @@
     "status": 415,
     "description": "The request uses an unsupported media type.",
     "type": "https://docs.air-iq.net/reference/errors/#unsupported-media-type"
+  },
+  {
+    "slug": "too-many-requests",
+    "title": "Too many requests",
+    "status": 429,
+    "description": "The client sent too many requests; retry later.",
+    "type": "https://docs.air-iq.net/reference/errors/#too-many-requests"
   },
   {
     "slug": "validation-error",
