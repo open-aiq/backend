@@ -106,6 +106,26 @@ func (_u *DeviceUpdate) SetNillableIsLocationPublic(v *bool) *DeviceUpdate {
 	return _u
 }
 
+// SetFirmwareVersion sets the "firmware_version" field.
+func (_u *DeviceUpdate) SetFirmwareVersion(v string) *DeviceUpdate {
+	_u.mutation.SetFirmwareVersion(v)
+	return _u
+}
+
+// SetNillableFirmwareVersion sets the "firmware_version" field if the given value is not nil.
+func (_u *DeviceUpdate) SetNillableFirmwareVersion(v *string) *DeviceUpdate {
+	if v != nil {
+		_u.SetFirmwareVersion(*v)
+	}
+	return _u
+}
+
+// ClearFirmwareVersion clears the value of the "firmware_version" field.
+func (_u *DeviceUpdate) ClearFirmwareVersion() *DeviceUpdate {
+	_u.mutation.ClearFirmwareVersion()
+	return _u
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (_u *DeviceUpdate) SetDeviceKey(v string) *DeviceUpdate {
 	_u.mutation.SetDeviceKey(v)
@@ -210,6 +230,11 @@ func (_u *DeviceUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Device.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.FirmwareVersion(); ok {
+		if err := device.FirmwareVersionValidator(v); err != nil {
+			return &ValidationError{Name: "firmware_version", err: fmt.Errorf(`ent: validator failed for field "Device.firmware_version": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DeviceKey(); ok {
 		if err := device.DeviceKeyValidator(v); err != nil {
 			return &ValidationError{Name: "device_key", err: fmt.Errorf(`ent: validator failed for field "Device.device_key": %w`, err)}
@@ -253,6 +278,12 @@ func (_u *DeviceUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsLocationPublic(); ok {
 		_spec.SetField(device.FieldIsLocationPublic, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.FirmwareVersion(); ok {
+		_spec.SetField(device.FieldFirmwareVersion, field.TypeString, value)
+	}
+	if _u.mutation.FirmwareVersionCleared() {
+		_spec.ClearField(device.FieldFirmwareVersion, field.TypeString)
 	}
 	if value, ok := _u.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)
@@ -403,6 +434,26 @@ func (_u *DeviceUpdateOne) SetNillableIsLocationPublic(v *bool) *DeviceUpdateOne
 	return _u
 }
 
+// SetFirmwareVersion sets the "firmware_version" field.
+func (_u *DeviceUpdateOne) SetFirmwareVersion(v string) *DeviceUpdateOne {
+	_u.mutation.SetFirmwareVersion(v)
+	return _u
+}
+
+// SetNillableFirmwareVersion sets the "firmware_version" field if the given value is not nil.
+func (_u *DeviceUpdateOne) SetNillableFirmwareVersion(v *string) *DeviceUpdateOne {
+	if v != nil {
+		_u.SetFirmwareVersion(*v)
+	}
+	return _u
+}
+
+// ClearFirmwareVersion clears the value of the "firmware_version" field.
+func (_u *DeviceUpdateOne) ClearFirmwareVersion() *DeviceUpdateOne {
+	_u.mutation.ClearFirmwareVersion()
+	return _u
+}
+
 // SetDeviceKey sets the "device_key" field.
 func (_u *DeviceUpdateOne) SetDeviceKey(v string) *DeviceUpdateOne {
 	_u.mutation.SetDeviceKey(v)
@@ -520,6 +571,11 @@ func (_u *DeviceUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Device.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.FirmwareVersion(); ok {
+		if err := device.FirmwareVersionValidator(v); err != nil {
+			return &ValidationError{Name: "firmware_version", err: fmt.Errorf(`ent: validator failed for field "Device.firmware_version": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DeviceKey(); ok {
 		if err := device.DeviceKeyValidator(v); err != nil {
 			return &ValidationError{Name: "device_key", err: fmt.Errorf(`ent: validator failed for field "Device.device_key": %w`, err)}
@@ -580,6 +636,12 @@ func (_u *DeviceUpdateOne) sqlSave(ctx context.Context) (_node *Device, err erro
 	}
 	if value, ok := _u.mutation.IsLocationPublic(); ok {
 		_spec.SetField(device.FieldIsLocationPublic, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.FirmwareVersion(); ok {
+		_spec.SetField(device.FieldFirmwareVersion, field.TypeString, value)
+	}
+	if _u.mutation.FirmwareVersionCleared() {
+		_spec.ClearField(device.FieldFirmwareVersion, field.TypeString)
 	}
 	if value, ok := _u.mutation.DeviceKey(); ok {
 		_spec.SetField(device.FieldDeviceKey, field.TypeString, value)

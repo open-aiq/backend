@@ -86,6 +86,11 @@ func IsLocationPublic(v bool) predicate.Device {
 	return predicate.Device(sql.FieldEQ(FieldIsLocationPublic, v))
 }
 
+// FirmwareVersion applies equality check predicate on the "firmware_version" field. It's identical to FirmwareVersionEQ.
+func FirmwareVersion(v string) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldFirmwareVersion, v))
+}
+
 // DeviceKey applies equality check predicate on the "device_key" field. It's identical to DeviceKeyEQ.
 func DeviceKey(v string) predicate.Device {
 	return predicate.Device(sql.FieldEQ(FieldDeviceKey, v))
@@ -334,6 +339,81 @@ func IsLocationPublicEQ(v bool) predicate.Device {
 // IsLocationPublicNEQ applies the NEQ predicate on the "is_location_public" field.
 func IsLocationPublicNEQ(v bool) predicate.Device {
 	return predicate.Device(sql.FieldNEQ(FieldIsLocationPublic, v))
+}
+
+// FirmwareVersionEQ applies the EQ predicate on the "firmware_version" field.
+func FirmwareVersionEQ(v string) predicate.Device {
+	return predicate.Device(sql.FieldEQ(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionNEQ applies the NEQ predicate on the "firmware_version" field.
+func FirmwareVersionNEQ(v string) predicate.Device {
+	return predicate.Device(sql.FieldNEQ(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionIn applies the In predicate on the "firmware_version" field.
+func FirmwareVersionIn(vs ...string) predicate.Device {
+	return predicate.Device(sql.FieldIn(FieldFirmwareVersion, vs...))
+}
+
+// FirmwareVersionNotIn applies the NotIn predicate on the "firmware_version" field.
+func FirmwareVersionNotIn(vs ...string) predicate.Device {
+	return predicate.Device(sql.FieldNotIn(FieldFirmwareVersion, vs...))
+}
+
+// FirmwareVersionGT applies the GT predicate on the "firmware_version" field.
+func FirmwareVersionGT(v string) predicate.Device {
+	return predicate.Device(sql.FieldGT(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionGTE applies the GTE predicate on the "firmware_version" field.
+func FirmwareVersionGTE(v string) predicate.Device {
+	return predicate.Device(sql.FieldGTE(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionLT applies the LT predicate on the "firmware_version" field.
+func FirmwareVersionLT(v string) predicate.Device {
+	return predicate.Device(sql.FieldLT(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionLTE applies the LTE predicate on the "firmware_version" field.
+func FirmwareVersionLTE(v string) predicate.Device {
+	return predicate.Device(sql.FieldLTE(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionContains applies the Contains predicate on the "firmware_version" field.
+func FirmwareVersionContains(v string) predicate.Device {
+	return predicate.Device(sql.FieldContains(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionHasPrefix applies the HasPrefix predicate on the "firmware_version" field.
+func FirmwareVersionHasPrefix(v string) predicate.Device {
+	return predicate.Device(sql.FieldHasPrefix(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionHasSuffix applies the HasSuffix predicate on the "firmware_version" field.
+func FirmwareVersionHasSuffix(v string) predicate.Device {
+	return predicate.Device(sql.FieldHasSuffix(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionIsNil applies the IsNil predicate on the "firmware_version" field.
+func FirmwareVersionIsNil() predicate.Device {
+	return predicate.Device(sql.FieldIsNull(FieldFirmwareVersion))
+}
+
+// FirmwareVersionNotNil applies the NotNil predicate on the "firmware_version" field.
+func FirmwareVersionNotNil() predicate.Device {
+	return predicate.Device(sql.FieldNotNull(FieldFirmwareVersion))
+}
+
+// FirmwareVersionEqualFold applies the EqualFold predicate on the "firmware_version" field.
+func FirmwareVersionEqualFold(v string) predicate.Device {
+	return predicate.Device(sql.FieldEqualFold(FieldFirmwareVersion, v))
+}
+
+// FirmwareVersionContainsFold applies the ContainsFold predicate on the "firmware_version" field.
+func FirmwareVersionContainsFold(v string) predicate.Device {
+	return predicate.Device(sql.FieldContainsFold(FieldFirmwareVersion, v))
 }
 
 // DeviceKeyEQ applies the EQ predicate on the "device_key" field.

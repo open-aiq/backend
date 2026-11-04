@@ -17,6 +17,7 @@ var (
 		{Name: "is_outdoor", Type: field.TypeBool, Default: false},
 		{Name: "is_public", Type: field.TypeBool, Default: false},
 		{Name: "is_location_public", Type: field.TypeBool, Default: false},
+		{Name: "firmware_version", Type: field.TypeString, Nullable: true, Size: 32},
 		{Name: "device_key", Type: field.TypeString},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -30,12 +31,12 @@ var (
 			{
 				Name:    "device_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{DevicesColumns[8]},
+				Columns: []*schema.Column{DevicesColumns[9]},
 			},
 			{
 				Name:    "device_owner_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{DevicesColumns[3], DevicesColumns[8]},
+				Columns: []*schema.Column{DevicesColumns[3], DevicesColumns[9]},
 			},
 		},
 	}

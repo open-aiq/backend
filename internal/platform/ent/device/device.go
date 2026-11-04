@@ -27,6 +27,8 @@ const (
 	FieldIsPublic = "is_public"
 	// FieldIsLocationPublic holds the string denoting the is_location_public field in the database.
 	FieldIsLocationPublic = "is_location_public"
+	// FieldFirmwareVersion holds the string denoting the firmware_version field in the database.
+	FieldFirmwareVersion = "firmware_version"
 	// FieldDeviceKey holds the string denoting the device_key field in the database.
 	FieldDeviceKey = "device_key"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldIsOutdoor,
 	FieldIsPublic,
 	FieldIsLocationPublic,
+	FieldFirmwareVersion,
 	FieldDeviceKey,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -81,6 +84,8 @@ var (
 	DefaultIsPublic bool
 	// DefaultIsLocationPublic holds the default value on creation for the "is_location_public" field.
 	DefaultIsLocationPublic bool
+	// FirmwareVersionValidator is a validator for the "firmware_version" field. It is called by the builders before save.
+	FirmwareVersionValidator func(string) error
 	// DeviceKeyValidator is a validator for the "device_key" field. It is called by the builders before save.
 	DeviceKeyValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -129,6 +134,11 @@ func ByIsPublic(opts ...sql.OrderTermOption) OrderOption {
 // ByIsLocationPublic orders the results by the is_location_public field.
 func ByIsLocationPublic(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsLocationPublic, opts...).ToFunc()
+}
+
+// ByFirmwareVersion orders the results by the firmware_version field.
+func ByFirmwareVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFirmwareVersion, opts...).ToFunc()
 }
 
 // ByDeviceKey orders the results by the device_key field.
