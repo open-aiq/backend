@@ -1,0 +1,89 @@
+{
+  "checksums": [
+    {
+      "id": "github_release/github.com/air-verse/air/v1.67.4/air_1.67.4_darwin_amd64.tar.gz",
+      "checksum": "A6ECCC0AFEA79497D74EDB2F0FC603FD518AC9825A83E487D9E419EE5786035C",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/air-verse/air/v1.67.4/air_1.67.4_darwin_arm64.tar.gz",
+      "checksum": "377E3F6AD87DC27A1FE665A78229C619188CF70D05DDC24D62BA065EE0824934",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/air-verse/air/v1.67.4/air_1.67.4_linux_amd64.tar.gz",
+      "checksum": "C8CC405210E557E2681275688CE700441EAC53DB9FB42BB58764874EE9AA783D",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/air-verse/air/v1.67.4/air_1.67.4_linux_arm64.tar.gz",
+      "checksum": "3B138E3CC01C6F1F077F555BAA1DB45215C02F1AA57DB8AB0B5B082A76A45743",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/pamburus/hl/v0.36.5/hl-linux-arm64-gnu.tar.gz",
+      "checksum": "3D471DA3127E0168844E1AE8F36ACFC5DABB03768CFCD8A4D1AE7D8FB6A1D158",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/pamburus/hl/v0.36.5/hl-linux-x86_64-gnu.tar.gz",
+      "checksum": "0C19DE5B4C336835DF0B1CF09E00EFEB5924EC9C1E9E5B60F96B47D1A5F7E088",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/pamburus/hl/v0.36.5/hl-macos-arm64.tar.gz",
+      "checksum": "CD3ECD9D7914175C12E2D8137EA1B299A0D71BA514EB60A2A673917075ED3EB7",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/pamburus/hl/v0.36.5/hl-macos-x86_64.tar.gz",
+      "checksum": "716B1092E93016C5BF7FA18A22D4FAED62CA2D87C743D7F8E9DE4D5D6349A950",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/swaggo/swag/v1.16.6/swag_1.16.6_Darwin_arm64.tar.gz",
+      "checksum": "B8A96C65827DA71BE18BF47EA212B14DF17F6CD6726651834A08749E78CAD2AD",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/swaggo/swag/v1.16.6/swag_1.16.6_Darwin_x86_64.tar.gz",
+      "checksum": "DBC9B62561BA922C1A7703D985B5DDF3FC8387807C895EA37091393931559135",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/swaggo/swag/v1.16.6/swag_1.16.6_Linux_arm64.tar.gz",
+      "checksum": "0A2890B2AB31F37DA92A45D27B4CC78501BB74720B1DF0932D59377527C366E9",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/swaggo/swag/v1.16.6/swag_1.16.6_Linux_x86_64.tar.gz",
+      "checksum": "90BDF19E817001B17F5F91A1EEFB2D2DD9631B88A85712F195F44B220848C8BB",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/release.ariga.io/atlas/atlas-darwin-amd64-v1.3.0",
+      "checksum": "4B4D8621332EABC3E6E7554D799A98CEEF6376C4D8BBAD6ED7832B49655E3480",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/release.ariga.io/atlas/atlas-darwin-arm64-v1.3.0",
+      "checksum": "47AAF7C295C7569C7EECFCBC53F02DE862846CE1FBEF16F1BD8AE98B03C3C68F",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/release.ariga.io/atlas/atlas-linux-amd64-v1.3.0",
+      "checksum": "CFC773E5B4E845BC01D680390C174648938A7F88BF30E5A2C83AE85217C21587",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/release.ariga.io/atlas/atlas-linux-arm64-v1.3.0",
+      "checksum": "D2CFB1C71E58170BB4DDBE62107A38DA4490F516FFA53A13ABF57583819B6A40",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.581.1/registry.yaml",
+      "checksum": "78C9BE2054AEE428D1844DBF87765A7FE0D313E7226ECEB88F958CB7FD98EED8",
+      "algorithm": "sha256"
+    }
+  ]
+}

@@ -3,6 +3,17 @@ CONTAINER := openaiq-postgres
 CONTAINER_VOLUME := openaiq-pgdata
 DB_VERION := 18
 BACKUP_DIR ?= backups
+TOOLS_DIR    := $(CURDIR)/.tools
+AQUA_VERSION := v2.66.0
+export AQUA_ROOT_DIR := $(TOOLS_DIR)/aqua
+export GOTOOLCHAIN   := go1.26.1
+# A GOROOT exported by a version manager (e.g. mise) would override the pinned toolchain.
+unexport GOROOT
+export PATH          := $(AQUA_ROOT_DIR)/bin:$(TOOLS_DIR)/bin:$(PATH)
+ATLAS := $(AQUA_ROOT_DIR)/bin/atlas
+SWAG  := $(AQUA_ROOT_DIR)/bin/swag
+AIR   := $(AQUA_ROOT_DIR)/bin/air
+HL    := $(AQUA_ROOT_DIR)/bin/hl
 
 # Load .env so DATABASE_URL is available to the db-* targets.
 # DATABASE_URL has no fallback — it must be defined in .env (see .env.example).
@@ -14,7 +25,7 @@ DIST           ?= dist
 BINARY         ?= server
 PLATFORMS      ?= linux/amd64 linux/arm64 darwin/arm64
 
-.PHONY: help dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-backup db-backups-clean db-clean db-logs db-shell
+.PHONY: help init dev generate build run swagger clean release migration migrate-up seed require-database-url db-up db-down db-backup db-backups-clean db-clean db-logs db-shell
 
 ## help: Show available commands
 help:
@@ -22,13 +33,25 @@ help:
 	@echo ""
 	@sed -n 's/^## //p' $(MAKEFILE_LIST) | column -t -s ':' | sed 's/^/  /'
 
-## dev: Live reload with swagger regeneration
+## init: install deps and setup the path, run this command before starting the work
+init:
+	@test -x "$(TOOLS_DIR)/bin/aqua" || GOTOOLCHAIN=auto GOBIN="$(TOOLS_DIR)/bin" go install github.com/aquaproj/aqua/v2/cmd/aqua@$(AQUA_VERSION)
+	@"$(TOOLS_DIR)/bin/aqua" install
+	@test -f .envrc || printf '%s\n' \
+	  'PATH_add .tools/bin' \
+	  'export AQUA_ROOT_DIR="$$PWD/.tools/aqua"' \
+	  'PATH_add .tools/aqua/bin' \
+	  'export GOTOOLCHAIN=go1.26.1' \
+	  'dotenv_if_exists .env' > .envrc
+	@echo "Tools ready. With direnv: run 'direnv allow' once."
+
+## dev: Live reload with swagger regeneration; JSON logs are pretty-printed by hl
 dev:
-	air
+	@"$(AIR)" 2>&1 | "$(HL)" -P -L
 
 ## swagger: Generate swagger docs
 swagger:
-	swag init -g cmd/server/main.go -o docs
+	"$(SWAG)" init -g cmd/server/main.go -o docs
 	go run ./cmd/problemgen -out docs/problems.json
 
 
@@ -59,11 +82,11 @@ migration-gen:
 		cli_dir="$$(mktemp -d)"; \
 		trap 'rm -rf "$$cli_dir"' EXIT; \
 		ln -s "$$(command -v "$(ENGINE)")" "$$cli_dir/docker"; \
-		PATH="$$cli_dir:$$PATH" atlas migrate diff "$(name)" --env defaultConfig
+		PATH="$$cli_dir:$$PATH" "$(ATLAS)" migrate diff "$(name)" --env defaultConfig
 
 ## migration-apply: Apply all pending migrations to DATABASE_URL
 migration-apply: require-database-url
-	atlas migrate apply --env defaultConfig --url "$(DATABASE_URL)"
+	"$(ATLAS)" migrate apply --env defaultConfig --url "$(DATABASE_URL)"
 
 
 

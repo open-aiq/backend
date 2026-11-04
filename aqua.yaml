@@ -1,0 +1,13 @@
+# Pinned CLI tools for this repo. Install with: make init
+registries:
+  - type: standard
+    ref: v4.581.1
+checksum:
+  enabled: true
+  require_checksum: true
+  supported_envs: [darwin/arm64, darwin/amd64, linux/amd64, linux/arm64]
+packages:
+  - name: ariga/atlas@v1.3.0   # official build (supports ent://)
+  - name: swaggo/swag@v1.16.6  # keep in sync with github.com/swaggo/swag in go.mod
+  - name: air-verse/air@v1.67.4
+  - name: pamburus/hl@v0.36.5   # pretty-prints JSON logs in make dev
