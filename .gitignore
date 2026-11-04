@@ -40,3 +40,7 @@ go.work.sum
 *.sw?
 
 tmp
+
+# Project-local dev tools (make init)
+/.tools/
+.envrc
