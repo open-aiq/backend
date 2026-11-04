@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/mold/v4/modifiers"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 
 	"go-aiq-backend/internal/platform/problem"
 )
@@ -186,4 +187,16 @@ func message(name string, err validator.FieldError) string {
 	default:
 		return fmt.Sprintf("%s is invalid", name)
 	}
+}
+
+// PathUUID reads and validates a UUIDv4 path parameter, writing a validation
+// problem and returning false when it is malformed.
+func PathUUID(c *gin.Context, name string) (uuid.UUID, bool) {
+	value := c.Param(name)
+	id, err := uuid.Parse(value)
+	if err != nil || id.Version() != 4 {
+		problem.Write(c, problem.Validation, "One or more path parameters are invalid.", problem.Violation{In: "path", Name: name, Code: "format", Detail: name + " must be a UUIDv4"})
+		return uuid.Nil, false
+	}
+	return id, true
 }
