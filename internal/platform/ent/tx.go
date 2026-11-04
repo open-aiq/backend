@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Device is the client for interacting with the Device builders.
 	Device *DeviceClient
+	// DeviceLog is the client for interacting with the DeviceLog builders.
+	DeviceLog *DeviceLogClient
 	// DeviceReading is the client for interacting with the DeviceReading builders.
 	DeviceReading *DeviceReadingClient
 
@@ -148,6 +150,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Device = NewDeviceClient(tx.config)
+	tx.DeviceLog = NewDeviceLogClient(tx.config)
 	tx.DeviceReading = NewDeviceReadingClient(tx.config)
 }
 

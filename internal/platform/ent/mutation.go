@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"sync"
@@ -27,6 +28,7 @@ const (
 
 	// Node types.
 	TypeDevice        = "Device"
+	TypeDeviceLog     = "DeviceLog"
 	TypeDeviceReading = "DeviceReading"
 )
 
@@ -50,6 +52,9 @@ type DeviceMutation struct {
 	readings           map[int]struct{}
 	removedreadings    map[int]struct{}
 	clearedreadings    bool
+	logs               map[int64]struct{}
+	removedlogs        map[int64]struct{}
+	clearedlogs        bool
 	done               bool
 	oldValue           func(context.Context) (*Device, error)
 	predicates         []predicate.Device
@@ -599,6 +604,60 @@ func (m *DeviceMutation) ResetReadings() {
 	m.removedreadings = nil
 }
 
+// AddLogIDs adds the "logs" edge to the DeviceLog entity by ids.
+func (m *DeviceMutation) AddLogIDs(ids ...int64) {
+	if m.logs == nil {
+		m.logs = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.logs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLogs clears the "logs" edge to the DeviceLog entity.
+func (m *DeviceMutation) ClearLogs() {
+	m.clearedlogs = true
+}
+
+// LogsCleared reports if the "logs" edge to the DeviceLog entity was cleared.
+func (m *DeviceMutation) LogsCleared() bool {
+	return m.clearedlogs
+}
+
+// RemoveLogIDs removes the "logs" edge to the DeviceLog entity by IDs.
+func (m *DeviceMutation) RemoveLogIDs(ids ...int64) {
+	if m.removedlogs == nil {
+		m.removedlogs = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.logs, ids[i])
+		m.removedlogs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLogs returns the removed IDs of the "logs" edge to the DeviceLog entity.
+func (m *DeviceMutation) RemovedLogsIDs() (ids []int64) {
+	for id := range m.removedlogs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LogsIDs returns the "logs" edge IDs in the mutation.
+func (m *DeviceMutation) LogsIDs() (ids []int64) {
+	for id := range m.logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLogs resets all changes to the "logs" edge.
+func (m *DeviceMutation) ResetLogs() {
+	m.logs = nil
+	m.clearedlogs = false
+	m.removedlogs = nil
+}
+
 // Where appends a list predicates to the DeviceMutation builder.
 func (m *DeviceMutation) Where(ps ...predicate.Device) {
 	m.predicates = append(m.predicates, ps...)
@@ -900,9 +959,12 @@ func (m *DeviceMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *DeviceMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.readings != nil {
 		edges = append(edges, device.EdgeReadings)
+	}
+	if m.logs != nil {
+		edges = append(edges, device.EdgeLogs)
 	}
 	return edges
 }
@@ -917,15 +979,24 @@ func (m *DeviceMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case device.EdgeLogs:
+		ids := make([]ent.Value, 0, len(m.logs))
+		for id := range m.logs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *DeviceMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedreadings != nil {
 		edges = append(edges, device.EdgeReadings)
+	}
+	if m.removedlogs != nil {
+		edges = append(edges, device.EdgeLogs)
 	}
 	return edges
 }
@@ -940,15 +1011,24 @@ func (m *DeviceMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case device.EdgeLogs:
+		ids := make([]ent.Value, 0, len(m.removedlogs))
+		for id := range m.removedlogs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *DeviceMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedreadings {
 		edges = append(edges, device.EdgeReadings)
+	}
+	if m.clearedlogs {
+		edges = append(edges, device.EdgeLogs)
 	}
 	return edges
 }
@@ -959,6 +1039,8 @@ func (m *DeviceMutation) EdgeCleared(name string) bool {
 	switch name {
 	case device.EdgeReadings:
 		return m.clearedreadings
+	case device.EdgeLogs:
+		return m.clearedlogs
 	}
 	return false
 }
@@ -978,8 +1060,866 @@ func (m *DeviceMutation) ResetEdge(name string) error {
 	case device.EdgeReadings:
 		m.ResetReadings()
 		return nil
+	case device.EdgeLogs:
+		m.ResetLogs()
+		return nil
 	}
 	return fmt.Errorf("unknown Device edge %s", name)
+}
+
+// DeviceLogMutation represents an operation that mutates the DeviceLog nodes in the graph.
+type DeviceLogMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int64
+	level         *devicelog.Level
+	tag           *string
+	message       *string
+	uptime_ms     *int64
+	adduptime_ms  *int64
+	boot_count    *int
+	addboot_count *int
+	device_ts     *time.Time
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	device        *uuid.UUID
+	cleareddevice bool
+	done          bool
+	oldValue      func(context.Context) (*DeviceLog, error)
+	predicates    []predicate.DeviceLog
+}
+
+var _ ent.Mutation = (*DeviceLogMutation)(nil)
+
+// devicelogOption allows management of the mutation configuration using functional options.
+type devicelogOption func(*DeviceLogMutation)
+
+// newDeviceLogMutation creates new mutation for the DeviceLog entity.
+func newDeviceLogMutation(c config, op Op, opts ...devicelogOption) *DeviceLogMutation {
+	m := &DeviceLogMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDeviceLog,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDeviceLogID sets the ID field of the mutation.
+func withDeviceLogID(id int64) devicelogOption {
+	return func(m *DeviceLogMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DeviceLog
+		)
+		m.oldValue = func(ctx context.Context) (*DeviceLog, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DeviceLog.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDeviceLog sets the old DeviceLog of the mutation.
+func withDeviceLog(node *DeviceLog) devicelogOption {
+	return func(m *DeviceLogMutation) {
+		m.oldValue = func(context.Context) (*DeviceLog, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DeviceLogMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DeviceLogMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of DeviceLog entities.
+func (m *DeviceLogMutation) SetID(id int64) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DeviceLogMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DeviceLogMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DeviceLog.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDeviceID sets the "device_id" field.
+func (m *DeviceLogMutation) SetDeviceID(u uuid.UUID) {
+	m.device = &u
+}
+
+// DeviceID returns the value of the "device_id" field in the mutation.
+func (m *DeviceLogMutation) DeviceID() (r uuid.UUID, exists bool) {
+	v := m.device
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceID returns the old "device_id" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldDeviceID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceID: %w", err)
+	}
+	return oldValue.DeviceID, nil
+}
+
+// ResetDeviceID resets all changes to the "device_id" field.
+func (m *DeviceLogMutation) ResetDeviceID() {
+	m.device = nil
+}
+
+// SetLevel sets the "level" field.
+func (m *DeviceLogMutation) SetLevel(d devicelog.Level) {
+	m.level = &d
+}
+
+// Level returns the value of the "level" field in the mutation.
+func (m *DeviceLogMutation) Level() (r devicelog.Level, exists bool) {
+	v := m.level
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLevel returns the old "level" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldLevel(ctx context.Context) (v devicelog.Level, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLevel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLevel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLevel: %w", err)
+	}
+	return oldValue.Level, nil
+}
+
+// ResetLevel resets all changes to the "level" field.
+func (m *DeviceLogMutation) ResetLevel() {
+	m.level = nil
+}
+
+// SetTag sets the "tag" field.
+func (m *DeviceLogMutation) SetTag(s string) {
+	m.tag = &s
+}
+
+// Tag returns the value of the "tag" field in the mutation.
+func (m *DeviceLogMutation) Tag() (r string, exists bool) {
+	v := m.tag
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTag returns the old "tag" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldTag(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTag is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTag requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTag: %w", err)
+	}
+	return oldValue.Tag, nil
+}
+
+// ResetTag resets all changes to the "tag" field.
+func (m *DeviceLogMutation) ResetTag() {
+	m.tag = nil
+}
+
+// SetMessage sets the "message" field.
+func (m *DeviceLogMutation) SetMessage(s string) {
+	m.message = &s
+}
+
+// Message returns the value of the "message" field in the mutation.
+func (m *DeviceLogMutation) Message() (r string, exists bool) {
+	v := m.message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessage returns the old "message" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldMessage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessage: %w", err)
+	}
+	return oldValue.Message, nil
+}
+
+// ResetMessage resets all changes to the "message" field.
+func (m *DeviceLogMutation) ResetMessage() {
+	m.message = nil
+}
+
+// SetUptimeMs sets the "uptime_ms" field.
+func (m *DeviceLogMutation) SetUptimeMs(i int64) {
+	m.uptime_ms = &i
+	m.adduptime_ms = nil
+}
+
+// UptimeMs returns the value of the "uptime_ms" field in the mutation.
+func (m *DeviceLogMutation) UptimeMs() (r int64, exists bool) {
+	v := m.uptime_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUptimeMs returns the old "uptime_ms" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldUptimeMs(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUptimeMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUptimeMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUptimeMs: %w", err)
+	}
+	return oldValue.UptimeMs, nil
+}
+
+// AddUptimeMs adds i to the "uptime_ms" field.
+func (m *DeviceLogMutation) AddUptimeMs(i int64) {
+	if m.adduptime_ms != nil {
+		*m.adduptime_ms += i
+	} else {
+		m.adduptime_ms = &i
+	}
+}
+
+// AddedUptimeMs returns the value that was added to the "uptime_ms" field in this mutation.
+func (m *DeviceLogMutation) AddedUptimeMs() (r int64, exists bool) {
+	v := m.adduptime_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUptimeMs resets all changes to the "uptime_ms" field.
+func (m *DeviceLogMutation) ResetUptimeMs() {
+	m.uptime_ms = nil
+	m.adduptime_ms = nil
+}
+
+// SetBootCount sets the "boot_count" field.
+func (m *DeviceLogMutation) SetBootCount(i int) {
+	m.boot_count = &i
+	m.addboot_count = nil
+}
+
+// BootCount returns the value of the "boot_count" field in the mutation.
+func (m *DeviceLogMutation) BootCount() (r int, exists bool) {
+	v := m.boot_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBootCount returns the old "boot_count" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldBootCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBootCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBootCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBootCount: %w", err)
+	}
+	return oldValue.BootCount, nil
+}
+
+// AddBootCount adds i to the "boot_count" field.
+func (m *DeviceLogMutation) AddBootCount(i int) {
+	if m.addboot_count != nil {
+		*m.addboot_count += i
+	} else {
+		m.addboot_count = &i
+	}
+}
+
+// AddedBootCount returns the value that was added to the "boot_count" field in this mutation.
+func (m *DeviceLogMutation) AddedBootCount() (r int, exists bool) {
+	v := m.addboot_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBootCount resets all changes to the "boot_count" field.
+func (m *DeviceLogMutation) ResetBootCount() {
+	m.boot_count = nil
+	m.addboot_count = nil
+}
+
+// SetDeviceTs sets the "device_ts" field.
+func (m *DeviceLogMutation) SetDeviceTs(t time.Time) {
+	m.device_ts = &t
+}
+
+// DeviceTs returns the value of the "device_ts" field in the mutation.
+func (m *DeviceLogMutation) DeviceTs() (r time.Time, exists bool) {
+	v := m.device_ts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceTs returns the old "device_ts" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldDeviceTs(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceTs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceTs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceTs: %w", err)
+	}
+	return oldValue.DeviceTs, nil
+}
+
+// ClearDeviceTs clears the value of the "device_ts" field.
+func (m *DeviceLogMutation) ClearDeviceTs() {
+	m.device_ts = nil
+	m.clearedFields[devicelog.FieldDeviceTs] = struct{}{}
+}
+
+// DeviceTsCleared returns if the "device_ts" field was cleared in this mutation.
+func (m *DeviceLogMutation) DeviceTsCleared() bool {
+	_, ok := m.clearedFields[devicelog.FieldDeviceTs]
+	return ok
+}
+
+// ResetDeviceTs resets all changes to the "device_ts" field.
+func (m *DeviceLogMutation) ResetDeviceTs() {
+	m.device_ts = nil
+	delete(m.clearedFields, devicelog.FieldDeviceTs)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DeviceLogMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DeviceLogMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DeviceLog entity.
+// If the DeviceLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceLogMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DeviceLogMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearDevice clears the "device" edge to the Device entity.
+func (m *DeviceLogMutation) ClearDevice() {
+	m.cleareddevice = true
+	m.clearedFields[devicelog.FieldDeviceID] = struct{}{}
+}
+
+// DeviceCleared reports if the "device" edge to the Device entity was cleared.
+func (m *DeviceLogMutation) DeviceCleared() bool {
+	return m.cleareddevice
+}
+
+// DeviceIDs returns the "device" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DeviceID instead. It exists only for internal usage by the builders.
+func (m *DeviceLogMutation) DeviceIDs() (ids []uuid.UUID) {
+	if id := m.device; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDevice resets all changes to the "device" edge.
+func (m *DeviceLogMutation) ResetDevice() {
+	m.device = nil
+	m.cleareddevice = false
+}
+
+// Where appends a list predicates to the DeviceLogMutation builder.
+func (m *DeviceLogMutation) Where(ps ...predicate.DeviceLog) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DeviceLogMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DeviceLogMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DeviceLog, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DeviceLogMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DeviceLogMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DeviceLog).
+func (m *DeviceLogMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DeviceLogMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.device != nil {
+		fields = append(fields, devicelog.FieldDeviceID)
+	}
+	if m.level != nil {
+		fields = append(fields, devicelog.FieldLevel)
+	}
+	if m.tag != nil {
+		fields = append(fields, devicelog.FieldTag)
+	}
+	if m.message != nil {
+		fields = append(fields, devicelog.FieldMessage)
+	}
+	if m.uptime_ms != nil {
+		fields = append(fields, devicelog.FieldUptimeMs)
+	}
+	if m.boot_count != nil {
+		fields = append(fields, devicelog.FieldBootCount)
+	}
+	if m.device_ts != nil {
+		fields = append(fields, devicelog.FieldDeviceTs)
+	}
+	if m.created_at != nil {
+		fields = append(fields, devicelog.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DeviceLogMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case devicelog.FieldDeviceID:
+		return m.DeviceID()
+	case devicelog.FieldLevel:
+		return m.Level()
+	case devicelog.FieldTag:
+		return m.Tag()
+	case devicelog.FieldMessage:
+		return m.Message()
+	case devicelog.FieldUptimeMs:
+		return m.UptimeMs()
+	case devicelog.FieldBootCount:
+		return m.BootCount()
+	case devicelog.FieldDeviceTs:
+		return m.DeviceTs()
+	case devicelog.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DeviceLogMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case devicelog.FieldDeviceID:
+		return m.OldDeviceID(ctx)
+	case devicelog.FieldLevel:
+		return m.OldLevel(ctx)
+	case devicelog.FieldTag:
+		return m.OldTag(ctx)
+	case devicelog.FieldMessage:
+		return m.OldMessage(ctx)
+	case devicelog.FieldUptimeMs:
+		return m.OldUptimeMs(ctx)
+	case devicelog.FieldBootCount:
+		return m.OldBootCount(ctx)
+	case devicelog.FieldDeviceTs:
+		return m.OldDeviceTs(ctx)
+	case devicelog.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown DeviceLog field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeviceLogMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case devicelog.FieldDeviceID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceID(v)
+		return nil
+	case devicelog.FieldLevel:
+		v, ok := value.(devicelog.Level)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLevel(v)
+		return nil
+	case devicelog.FieldTag:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTag(v)
+		return nil
+	case devicelog.FieldMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessage(v)
+		return nil
+	case devicelog.FieldUptimeMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUptimeMs(v)
+		return nil
+	case devicelog.FieldBootCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBootCount(v)
+		return nil
+	case devicelog.FieldDeviceTs:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceTs(v)
+		return nil
+	case devicelog.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceLog field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DeviceLogMutation) AddedFields() []string {
+	var fields []string
+	if m.adduptime_ms != nil {
+		fields = append(fields, devicelog.FieldUptimeMs)
+	}
+	if m.addboot_count != nil {
+		fields = append(fields, devicelog.FieldBootCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DeviceLogMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case devicelog.FieldUptimeMs:
+		return m.AddedUptimeMs()
+	case devicelog.FieldBootCount:
+		return m.AddedBootCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DeviceLogMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case devicelog.FieldUptimeMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUptimeMs(v)
+		return nil
+	case devicelog.FieldBootCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBootCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceLog numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DeviceLogMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(devicelog.FieldDeviceTs) {
+		fields = append(fields, devicelog.FieldDeviceTs)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DeviceLogMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DeviceLogMutation) ClearField(name string) error {
+	switch name {
+	case devicelog.FieldDeviceTs:
+		m.ClearDeviceTs()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceLog nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DeviceLogMutation) ResetField(name string) error {
+	switch name {
+	case devicelog.FieldDeviceID:
+		m.ResetDeviceID()
+		return nil
+	case devicelog.FieldLevel:
+		m.ResetLevel()
+		return nil
+	case devicelog.FieldTag:
+		m.ResetTag()
+		return nil
+	case devicelog.FieldMessage:
+		m.ResetMessage()
+		return nil
+	case devicelog.FieldUptimeMs:
+		m.ResetUptimeMs()
+		return nil
+	case devicelog.FieldBootCount:
+		m.ResetBootCount()
+		return nil
+	case devicelog.FieldDeviceTs:
+		m.ResetDeviceTs()
+		return nil
+	case devicelog.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceLog field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DeviceLogMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.device != nil {
+		edges = append(edges, devicelog.EdgeDevice)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DeviceLogMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case devicelog.EdgeDevice:
+		if id := m.device; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DeviceLogMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DeviceLogMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DeviceLogMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareddevice {
+		edges = append(edges, devicelog.EdgeDevice)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DeviceLogMutation) EdgeCleared(name string) bool {
+	switch name {
+	case devicelog.EdgeDevice:
+		return m.cleareddevice
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DeviceLogMutation) ClearEdge(name string) error {
+	switch name {
+	case devicelog.EdgeDevice:
+		m.ClearDevice()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceLog unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DeviceLogMutation) ResetEdge(name string) error {
+	switch name {
+	case devicelog.EdgeDevice:
+		m.ResetDevice()
+		return nil
+	}
+	return fmt.Errorf("unknown DeviceLog edge %s", name)
 }
 
 // DeviceReadingMutation represents an operation that mutates the DeviceReading nodes in the graph.

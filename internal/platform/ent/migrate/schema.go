@@ -40,6 +40,44 @@ var (
 			},
 		},
 	}
+	// DeviceLogsColumns holds the columns for the "device_logs" table.
+	DeviceLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "level", Type: field.TypeEnum, Enums: []string{"debug", "info", "warn", "error"}},
+		{Name: "tag", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "message", Type: field.TypeString, Size: 256},
+		{Name: "uptime_ms", Type: field.TypeInt64},
+		{Name: "boot_count", Type: field.TypeInt},
+		{Name: "device_ts", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "device_id", Type: field.TypeUUID},
+	}
+	// DeviceLogsTable holds the schema information for the "device_logs" table.
+	DeviceLogsTable = &schema.Table{
+		Name:       "device_logs",
+		Columns:    DeviceLogsColumns,
+		PrimaryKey: []*schema.Column{DeviceLogsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "device_logs_devices_logs",
+				Columns:    []*schema.Column{DeviceLogsColumns[8]},
+				RefColumns: []*schema.Column{DevicesColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "devicelog_device_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{DeviceLogsColumns[8], DeviceLogsColumns[0]},
+			},
+			{
+				Name:    "devicelog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{DeviceLogsColumns[7]},
+			},
+		},
+	}
 	// DeviceReadingsColumns holds the columns for the "device_readings" table.
 	DeviceReadingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -87,10 +125,12 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		DevicesTable,
+		DeviceLogsTable,
 		DeviceReadingsTable,
 	}
 )
 
 func init() {
+	DeviceLogsTable.ForeignKeys[0].RefTable = DevicesTable
 	DeviceReadingsTable.ForeignKeys[0].RefTable = DevicesTable
 }

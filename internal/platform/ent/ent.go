@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 	"reflect"
 	"sync"
@@ -75,6 +76,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			device.Table:        device.ValidColumn,
+			devicelog.Table:     devicelog.ValidColumn,
 			devicereading.Table: devicereading.ValidColumn,
 		})
 	})

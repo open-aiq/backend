@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 	"time"
 
@@ -165,6 +166,21 @@ func (_c *DeviceCreate) AddReadings(v ...*DeviceReading) *DeviceCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddReadingIDs(ids...)
+}
+
+// AddLogIDs adds the "logs" edge to the DeviceLog entity by IDs.
+func (_c *DeviceCreate) AddLogIDs(ids ...int64) *DeviceCreate {
+	_c.mutation.AddLogIDs(ids...)
+	return _c
+}
+
+// AddLogs adds the "logs" edges to the DeviceLog entity.
+func (_c *DeviceCreate) AddLogs(v ...*DeviceLog) *DeviceCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddLogIDs(ids...)
 }
 
 // Mutation returns the DeviceMutation object of the builder.
@@ -358,6 +374,22 @@ func (_c *DeviceCreate) createSpec() (*Device, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(devicereading.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.LogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   device.LogsTable,
+			Columns: []string{device.LogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(devicelog.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

@@ -271,6 +271,90 @@ const docTemplate = `{
                 }
             }
         },
+        "/device/logs": {
+            "post": {
+                "description": "Stores up to 50 important log entries (warnings, errors, boot, WiFi, OTA events) from the calling device. Limited to 20 uploads per device per hour.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Data"
+                ],
+                "summary": "Upload device log entries (device)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Public device id (dev_...)",
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Secret device key (sk_...)",
+                        "name": "X-Device-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Log batch",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/devicelog.UploadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/devicelog.UploadResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
         "/devices": {
             "get": {
                 "security": [
@@ -628,6 +712,88 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/airquality.HistoricalResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the device's log entries, newest first. level is the minimum level (warn returns warn and error). Page with next_before.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "List a device's logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string",
+                        "description": "Minimum level",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (1-200, default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Return entries older than this id (from next_before)",
+                        "name": "before",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/devicelog.ListResponse"
                         }
                     },
                     "401": {
@@ -1289,6 +1455,133 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/device.Device"
+                }
+            }
+        },
+        "devicelog.Entry": {
+            "type": "object",
+            "required": [
+                "boot_count",
+                "level",
+                "message",
+                "uptime_ms"
+            ],
+            "properties": {
+                "boot_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 12
+                },
+                "level": {
+                    "type": "string",
+                    "enum": [
+                        "debug",
+                        "info",
+                        "warn",
+                        "error"
+                    ],
+                    "example": "warn"
+                },
+                "message": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "example": "reconnect failed: timeout"
+                },
+                "tag": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "wifi"
+                },
+                "ts": {
+                    "description": "Ts is the device's Unix time in seconds, omitted until its clock is synced.",
+                    "type": "integer",
+                    "example": 1793700000
+                },
+                "uptime_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 183000
+                }
+            }
+        },
+        "devicelog.ListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/devicelog.Log"
+                    }
+                },
+                "next_before": {
+                    "description": "NextBefore is the cursor for the next (older) page, or null at the end.",
+                    "type": "integer"
+                }
+            }
+        },
+        "devicelog.Log": {
+            "type": "object",
+            "properties": {
+                "boot_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "device_ts": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "string",
+                    "example": "warn"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string",
+                    "example": "wifi"
+                },
+                "uptime_ms": {
+                    "type": "integer"
+                }
+            }
+        },
+        "devicelog.UploadRequest": {
+            "type": "object",
+            "properties": {
+                "dropped": {
+                    "description": "Dropped counts entries the device discarded because its buffer was full.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                },
+                "entries": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "$ref": "#/definitions/devicelog.Entry"
+                    }
+                }
+            }
+        },
+        "devicelog.UploadResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/devicelog.UploadResult"
+                }
+            }
+        },
+        "devicelog.UploadResult": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "integer",
+                    "example": 12
                 }
             }
         },

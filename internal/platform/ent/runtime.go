@@ -4,6 +4,7 @@ package ent
 
 import (
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/schema"
 	"time"
@@ -59,6 +60,44 @@ func init() {
 	deviceDescID := deviceFields[0].Descriptor()
 	// device.DefaultID holds the default value on creation for the id field.
 	device.DefaultID = deviceDescID.Default.(func() uuid.UUID)
+	devicelogFields := schema.DeviceLog{}.Fields()
+	_ = devicelogFields
+	// devicelogDescTag is the schema descriptor for tag field.
+	devicelogDescTag := devicelogFields[3].Descriptor()
+	// devicelog.DefaultTag holds the default value on creation for the tag field.
+	devicelog.DefaultTag = devicelogDescTag.Default.(string)
+	// devicelog.TagValidator is a validator for the "tag" field. It is called by the builders before save.
+	devicelog.TagValidator = devicelogDescTag.Validators[0].(func(string) error)
+	// devicelogDescMessage is the schema descriptor for message field.
+	devicelogDescMessage := devicelogFields[4].Descriptor()
+	// devicelog.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	devicelog.MessageValidator = func() func(string) error {
+		validators := devicelogDescMessage.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(message string) error {
+			for _, fn := range fns {
+				if err := fn(message); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// devicelogDescUptimeMs is the schema descriptor for uptime_ms field.
+	devicelogDescUptimeMs := devicelogFields[5].Descriptor()
+	// devicelog.UptimeMsValidator is a validator for the "uptime_ms" field. It is called by the builders before save.
+	devicelog.UptimeMsValidator = devicelogDescUptimeMs.Validators[0].(func(int64) error)
+	// devicelogDescBootCount is the schema descriptor for boot_count field.
+	devicelogDescBootCount := devicelogFields[6].Descriptor()
+	// devicelog.BootCountValidator is a validator for the "boot_count" field. It is called by the builders before save.
+	devicelog.BootCountValidator = devicelogDescBootCount.Validators[0].(func(int) error)
+	// devicelogDescCreatedAt is the schema descriptor for created_at field.
+	devicelogDescCreatedAt := devicelogFields[8].Descriptor()
+	// devicelog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	devicelog.DefaultCreatedAt = devicelogDescCreatedAt.Default.(func() time.Time)
 	devicereadingFields := schema.DeviceReading{}.Fields()
 	_ = devicereadingFields
 	// devicereadingDescPm10 is the schema descriptor for pm1_0 field.

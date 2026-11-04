@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"go-aiq-backend/internal/platform/ent/device"
+	"go-aiq-backend/internal/platform/ent/devicelog"
 	"go-aiq-backend/internal/platform/ent/devicereading"
 	"go-aiq-backend/internal/platform/ent/predicate"
 	"math"
@@ -26,6 +27,7 @@ type DeviceQuery struct {
 	inters       []Interceptor
 	predicates   []predicate.Device
 	withReadings *DeviceReadingQuery
+	withLogs     *DeviceLogQuery
 	modifiers    []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -78,6 +80,28 @@ func (_q *DeviceQuery) QueryReadings() *DeviceReadingQuery {
 			sqlgraph.From(device.Table, device.FieldID, selector),
 			sqlgraph.To(devicereading.Table, devicereading.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, device.ReadingsTable, device.ReadingsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLogs chains the current query on the "logs" edge.
+func (_q *DeviceQuery) QueryLogs() *DeviceLogQuery {
+	query := (&DeviceLogClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(device.Table, device.FieldID, selector),
+			sqlgraph.To(devicelog.Table, devicelog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, device.LogsTable, device.LogsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -278,6 +302,7 @@ func (_q *DeviceQuery) Clone() *DeviceQuery {
 		inters:       append([]Interceptor{}, _q.inters...),
 		predicates:   append([]predicate.Device{}, _q.predicates...),
 		withReadings: _q.withReadings.Clone(),
+		withLogs:     _q.withLogs.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -293,6 +318,17 @@ func (_q *DeviceQuery) WithReadings(opts ...func(*DeviceReadingQuery)) *DeviceQu
 		opt(query)
 	}
 	_q.withReadings = query
+	return _q
+}
+
+// WithLogs tells the query-builder to eager-load the nodes that are connected to
+// the "logs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *DeviceQuery) WithLogs(opts ...func(*DeviceLogQuery)) *DeviceQuery {
+	query := (&DeviceLogClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLogs = query
 	return _q
 }
 
@@ -374,8 +410,9 @@ func (_q *DeviceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Devic
 	var (
 		nodes       = []*Device{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withReadings != nil,
+			_q.withLogs != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -406,6 +443,13 @@ func (_q *DeviceQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Devic
 			return nil, err
 		}
 	}
+	if query := _q.withLogs; query != nil {
+		if err := _q.loadLogs(ctx, query, nodes,
+			func(n *Device) { n.Edges.Logs = []*DeviceLog{} },
+			func(n *Device, e *DeviceLog) { n.Edges.Logs = append(n.Edges.Logs, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
 }
 
@@ -424,6 +468,36 @@ func (_q *DeviceQuery) loadReadings(ctx context.Context, query *DeviceReadingQue
 	}
 	query.Where(predicate.DeviceReading(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(device.ReadingsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.DeviceID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "device_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *DeviceQuery) loadLogs(ctx context.Context, query *DeviceLogQuery, nodes []*Device, init func(*Device), assign func(*Device, *DeviceLog)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Device)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(devicelog.FieldDeviceID)
+	}
+	query.Where(predicate.DeviceLog(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(device.LogsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
