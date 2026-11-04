@@ -24,12 +24,14 @@ var (
 	NoReadings       = Kind{"no-readings", "No readings available", http.StatusNotFound, "The device has not reported any readings."}
 	ContentTooLarge  = Kind{"content-too-large", "Request content too large", http.StatusRequestEntityTooLarge, "The request body exceeds the accepted size."}
 	UnsupportedMedia = Kind{"unsupported-media-type", "Unsupported media type", http.StatusUnsupportedMediaType, "The request uses an unsupported media type."}
+	Conflict         = Kind{"conflict", "Conflict", http.StatusConflict, "The request conflicts with the current state of the resource."}
+	TooManyRequests  = Kind{"too-many-requests", "Too many requests", http.StatusTooManyRequests, "The client sent too many requests; retry later."}
 	Validation       = Kind{"validation-error", "Request validation failed", http.StatusUnprocessableEntity, "One or more request values are invalid."}
 	Internal         = Kind{"internal-error", "Internal server error", http.StatusInternalServerError, "The server could not complete the request."}
 )
 
 func Catalog() []Kind {
-	return []Kind{MalformedRequest, Unauthorized, NotFound, MethodNotAllowed, NoReadings, ContentTooLarge, UnsupportedMedia, Validation, Internal}
+	return []Kind{MalformedRequest, Unauthorized, NotFound, MethodNotAllowed, NoReadings, Conflict, ContentTooLarge, UnsupportedMedia, TooManyRequests, Validation, Internal}
 }
 
 type Violation struct {
