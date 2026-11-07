@@ -1,6 +1,13 @@
 package middleware
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
 
 func TestAuthorizedParty(t *testing.T) {
 	allowed := map[string]struct{}{"https://openaiq.org": {}}
@@ -21,3 +28,36 @@ func TestAuthorizedParty(t *testing.T) {
 		}
 	}
 }
+
+func TestRequireNativeClient(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cases := []struct {
+		name   string
+		native *bool
+		want   int
+	}{
+		{"native token passes", ptr(true), http.StatusNoContent},
+		{"browser token rejected", ptr(false), http.StatusForbidden},
+		{"missing flag rejected", nil, http.StatusForbidden},
+	}
+	for _, tc := range cases {
+		r := gin.New()
+		r.POST("/devices", func(c *gin.Context) {
+			if tc.native != nil {
+				c.Set(nativeClientKey, *tc.native)
+			}
+			c.Next()
+		}, RequireNativeClient(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/devices", nil))
+		if w.Code != tc.want {
+			t.Errorf("%s: got %d, want %d", tc.name, w.Code, tc.want)
+		}
+		if tc.want == http.StatusForbidden && !strings.Contains(w.Body.String(), "mobile-app-required") {
+			t.Errorf("%s: body %q lacks mobile-app-required", tc.name, w.Body.String())
+		}
+	}
+}
+
+func ptr[T any](v T) *T { return &v }

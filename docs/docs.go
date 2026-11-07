@@ -535,7 +535,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Registers a device and returns its credentials. The device_key is a secret shown only once here; store it securely.",
+                "description": "Registers a device and returns its credentials. The device_key is a secret shown only once here; store it securely. Only the mobile app may call this; browser sessions get 403 mobile-app-required.",
                 "consumes": [
                     "application/json"
                 ],
@@ -572,6 +572,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
@@ -1160,7 +1166,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Generates a new device_key for the device, invalidating the old one immediately. The new key is shown only in this response; update the physical device with it right away.",
+                "description": "Generates a new device_key for the device, invalidating the old one immediately. The new key is shown only in this response; update the physical device with it right away. Only the mobile app may call this; browser sessions get 403 mobile-app-required.",
                 "produces": [
                     "application/json"
                 ],
@@ -1186,6 +1192,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }

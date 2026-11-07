@@ -14,6 +14,13 @@
     "type": "https://docs.air-iq.net/reference/errors/#unauthorized"
   },
   {
+    "slug": "mobile-app-required",
+    "title": "Mobile app required",
+    "status": 403,
+    "description": "This action is only available in the Open AIQ mobile app.",
+    "type": "https://docs.air-iq.net/reference/errors/#mobile-app-required"
+  },
+  {
     "slug": "not-found",
     "title": "Resource not found",
     "status": 404,

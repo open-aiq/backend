@@ -24,7 +24,7 @@ func NewHandler(service *Service) *Handler {
 // Create godoc
 //
 // @Summary Register a new device
-// @Description Registers a device and returns its credentials. The device_key is a secret shown only once here; store it securely.
+// @Description Registers a device and returns its credentials. The device_key is a secret shown only once here; store it securely. Only the mobile app may call this; browser sessions get 403 mobile-app-required.
 // @Tags Devices
 // @Accept json
 // @Produce json
@@ -33,6 +33,7 @@ func NewHandler(service *Service) *Handler {
 //
 // @Success 201 {object} CreateDeviceResponse
 // @Failure 401 {object} problem.Problem
+// @Failure 403 {object} problem.Problem
 // @Failure 400 {object} problem.Problem
 // @Failure 413 {object} problem.Problem
 // @Failure 415 {object} problem.Problem
@@ -200,7 +201,7 @@ func (h *Handler) Update(c *gin.Context) {
 // RotateKey godoc
 //
 // @Summary Rotate a device's secret key
-// @Description Generates a new device_key for the device, invalidating the old one immediately. The new key is shown only in this response; update the physical device with it right away.
+// @Description Generates a new device_key for the device, invalidating the old one immediately. The new key is shown only in this response; update the physical device with it right away. Only the mobile app may call this; browser sessions get 403 mobile-app-required.
 // @Tags Devices
 // @Produce json
 //
@@ -208,6 +209,7 @@ func (h *Handler) Update(c *gin.Context) {
 //
 // @Success 200 {object} RotateKeyResponse
 // @Failure 401 {object} problem.Problem
+// @Failure 403 {object} problem.Problem
 // @Failure 404 {object} problem.Problem
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem

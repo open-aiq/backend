@@ -19,6 +19,7 @@ type Kind struct {
 var (
 	MalformedRequest = Kind{"malformed-request", "Malformed request", http.StatusBadRequest, "The request could not be decoded."}
 	Unauthorized     = Kind{"unauthorized", "Unauthorized", http.StatusUnauthorized, "Valid credentials are required."}
+	MobileOnly       = Kind{"mobile-app-required", "Mobile app required", http.StatusForbidden, "This action is only available in the Open AIQ mobile app."}
 	NotFound         = Kind{"not-found", "Resource not found", http.StatusNotFound, "The requested resource was not found."}
 	MethodNotAllowed = Kind{"method-not-allowed", "Method not allowed", http.StatusMethodNotAllowed, "The request method is not supported for this resource."}
 	NoReadings       = Kind{"no-readings", "No readings available", http.StatusNotFound, "The device has not reported any readings."}
@@ -31,7 +32,7 @@ var (
 )
 
 func Catalog() []Kind {
-	return []Kind{MalformedRequest, Unauthorized, NotFound, MethodNotAllowed, NoReadings, Conflict, ContentTooLarge, UnsupportedMedia, TooManyRequests, Validation, Internal}
+	return []Kind{MalformedRequest, Unauthorized, MobileOnly, NotFound, MethodNotAllowed, NoReadings, Conflict, ContentTooLarge, UnsupportedMedia, TooManyRequests, Validation, Internal}
 }
 
 type Violation struct {
