@@ -839,7 +839,7 @@ paths:
       - application/json
       description: Stores one full sensor reading (particulate matter, AQI, temperature,
         optional location). The device authenticates with its X-Device-ID and X-Device-Key
-        headers.
+        headers. Limited to 30 uploads per device per minute.
       parameters:
       - description: Public device id (dev_...)
         in: header
@@ -886,6 +886,10 @@ paths:
             $ref: '#/definitions/problem.Problem'
         "422":
           description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/problem.Problem'
         "500":
