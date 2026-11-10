@@ -52,8 +52,9 @@ func main() {
 	}
 	clerk.SetKey(cfg.ClerkSecretKey)
 
-	// Connect to Postgres. Schema changes are applied out-of-band via versioned
-	// migrations (cmd/migrate / `make migrate-up`), never on startup.
+	// Connect to Postgres. The server never changes the schema itself: versioned
+	// migrations are applied by Atlas before it starts (`make migration:apply`
+	// locally, scripts/docker-entrypoint.sh in the container image).
 	client, err := database.New(cfg)
 	if err != nil {
 		logger.Error("failed to connect to database", "error", err)
