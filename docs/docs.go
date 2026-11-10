@@ -111,7 +111,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns air quality data points between start_date and end_date",
+                "description": "Returns daily air quality averages between start_date and end_date (both included). The range can cover at most 366 days.",
                 "produces": [
                     "application/json"
                 ],
