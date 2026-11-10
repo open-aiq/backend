@@ -75,6 +75,7 @@ func (h *Handler) GetDeviceCurrent(c *gin.Context) {
 // @Failure 404 {object} problem.Problem
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/devices/{id}/current [get]
 func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -92,6 +93,7 @@ func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 // @Success 200 {object} PublicMapResponse
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/map/devices [get]
 func (h *Handler) GetPublicMapDevices(c *gin.Context) {
 	if !input.RejectUnknownQuery(c) {
@@ -202,6 +204,7 @@ func (h *Handler) GetDeviceHistorical(c *gin.Context) {
 // @Failure 404 {object} problem.Problem
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/devices/{id}/historical [get]
 func (h *Handler) GetPublicDeviceHistorical(c *gin.Context) {
 	id, ok := deviceIDParam(c)

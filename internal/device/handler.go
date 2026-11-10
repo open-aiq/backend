@@ -99,6 +99,7 @@ func (h *Handler) List(c *gin.Context) {
 // @Tags Public
 // @Produce json
 // @Success 200 {object} ListPublicDevicesResponse
+// @Failure 429 {object} problem.Problem
 // @Router /public/devices [get]
 func (h *Handler) ListPublic(c *gin.Context) {
 	if !input.RejectUnknownQuery(c) {
@@ -121,6 +122,7 @@ func (h *Handler) ListPublic(c *gin.Context) {
 // @Success 200 {object} PublicDeviceResponse
 // @Failure 422 {object} problem.Problem
 // @Failure 404 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/devices/{id} [get]
 func (h *Handler) GetPublic(c *gin.Context) {
 	if !input.RejectUnknownQuery(c) {

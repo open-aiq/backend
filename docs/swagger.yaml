@@ -1591,6 +1591,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/device.ListPublicDevicesResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/problem.Problem'
       summary: List public devices
       tags:
       - Public
@@ -1617,6 +1621,10 @@ paths:
           description: Unprocessable Entity
           schema:
             $ref: '#/definitions/problem.Problem'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/problem.Problem'
       summary: Get a public device
       tags:
       - Public
@@ -1641,6 +1649,10 @@ paths:
             $ref: '#/definitions/problem.Problem'
         "422":
           description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/problem.Problem'
         "500":
@@ -1683,6 +1695,10 @@ paths:
           description: Unprocessable Entity
           schema:
             $ref: '#/definitions/problem.Problem'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/problem.Problem'
         "500":
           description: Internal Server Error
           schema:
@@ -1703,6 +1719,10 @@ paths:
             $ref: '#/definitions/airquality.PublicMapResponse'
         "422":
           description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/problem.Problem'
         "500":

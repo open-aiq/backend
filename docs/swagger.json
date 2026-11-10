@@ -1349,6 +1349,12 @@
                         "schema": {
                             "$ref": "#/definitions/device.ListPublicDevicesResponse"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
                     }
                 }
             }
@@ -1389,6 +1395,12 @@
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
                     }
                 }
             }
@@ -1426,6 +1438,12 @@
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
@@ -1489,6 +1507,12 @@
                             "$ref": "#/definitions/problem.Problem"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1517,6 +1541,12 @@
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }

@@ -1355,6 +1355,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/device.ListPublicDevicesResponse"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
                     }
                 }
             }
@@ -1395,6 +1401,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
                     }
                 }
             }
@@ -1432,6 +1444,12 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
@@ -1495,6 +1513,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/problem.Problem"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1523,6 +1547,12 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
