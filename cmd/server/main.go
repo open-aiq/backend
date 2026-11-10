@@ -16,6 +16,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"go-aiq-backend/docs"
+	"go-aiq-backend/internal/account"
 	"go-aiq-backend/internal/airquality"
 	"go-aiq-backend/internal/device"
 	"go-aiq-backend/internal/devicelog"
@@ -80,6 +81,10 @@ func main() {
 	deviceService.SetOtaSummarizer(firmwareService)
 	firmwareHandler := firmware.NewHandler(firmwareService)
 
+	// Wire up account deletion: it removes the user's devices (their readings,
+	// logs and OTA jobs cascade), then the Clerk user.
+	accountHandler := account.NewHandler(account.NewService(account.NewEntRepository(client), account.ClerkUsers{}))
+
 	// Wire up device log ingestion and its retention job.
 	logService := devicelog.NewService(devicelog.NewEntRepository(client))
 	logHandler := devicelog.NewHandler(logService)
@@ -122,6 +127,7 @@ func main() {
 	deviceHandler.RegisterRoutes(authenticated)
 	firmwareHandler.RegisterRoutes(authenticated)
 	logHandler.RegisterRoutes(authenticated)
+	accountHandler.RegisterRoutes(authenticated)
 	deviceHandler.RegisterPublicRoutes(api)
 	handler.RegisterPublicRoutes(api)
 	readingHandler.RegisterRoutes(api)

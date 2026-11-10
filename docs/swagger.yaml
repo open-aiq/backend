@@ -697,6 +697,33 @@ info:
   title: Air Quality API
   version: "1.0"
 paths:
+  /account:
+    delete:
+      description: Permanently deletes every device you own, with its readings, logs
+        and firmware update history, then your sign-in account. If it fails partway,
+        calling it again finishes the job.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/problem.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/problem.Problem'
+      security:
+      - BearerAuth: []
+      summary: Delete your account
+      tags:
+      - Account
   /air-quality/current:
     get:
       description: Returns sensor metrics averaged over the last hour, the device
