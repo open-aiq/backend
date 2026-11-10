@@ -32,6 +32,16 @@ import (
 // -ldflags "-X main.version=<tag>". Defaults to "dev" for local builds.
 var version = "dev"
 
+// HTTP server timeouts. Every route answers with a small JSON body and request
+// bodies are capped at 64 KiB, so nothing streams and whole-request deadlines
+// are safe. They stop slow or stalled clients from holding connections open.
+const (
+	readHeaderTimeout = 5 * time.Second
+	readTimeout       = 15 * time.Second
+	writeTimeout      = 30 * time.Second
+	idleTimeout       = 120 * time.Second
+)
+
 // @title Air Quality API
 // @version 1.0
 // @description Air quality monitoring API
@@ -136,8 +146,12 @@ func main() {
 	logHandler.RegisterDeviceRoutes(api, deviceService)
 
 	srv := &http.Server{
-		Addr:    cfg.Addr(),
-		Handler: r,
+		Addr:              cfg.Addr(),
+		Handler:           r,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
 	}
 
 	// Run the server in a goroutine so we can listen for shutdown signals.
