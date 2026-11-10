@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -15,17 +14,15 @@ import (
 	entlog "go-aiq-backend/internal/platform/ent/devicelog"
 )
 
-var (
-	ErrDeviceNotFound = errors.New("device not found")
-	ErrRateLimited    = errors.New("too many log uploads")
-)
+var ErrDeviceNotFound = errors.New("device not found")
 
 const (
 	// Retention is how long logs are kept.
 	Retention = 30 * 24 * time.Hour
-	// uploadsPerWindow uploads are accepted per device per rateWindow.
-	uploadsPerWindow = 20
-	rateWindow       = time.Hour
+	// UploadsPerWindow uploads are accepted per device per RateWindow; the
+	// limit is enforced on the upload route (see routes.go).
+	UploadsPerWindow = 20
+	RateWindow       = time.Hour
 	defaultLimit     = 50
 	messageLimit     = 256
 )
@@ -35,23 +32,18 @@ var levelOrder = []entlog.Level{entlog.LevelDebug, entlog.LevelInfo, entlog.Leve
 
 // Service handles device log ingestion and retrieval.
 type Service struct {
-	repo    Repository
-	now     func() time.Time
-	mu      sync.Mutex
-	uploads map[uuid.UUID][]time.Time
+	repo Repository
+	now  func() time.Time
 }
 
 // NewService creates a new device log service.
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo, now: time.Now, uploads: map[uuid.UUID][]time.Time{}}
+	return &Service{repo: repo, now: time.Now}
 }
 
 // Ingest stores a device's batch. A non-zero Dropped count is stored as an
 // extra warning so owners know entries were lost on the device.
 func (s *Service) Ingest(ctx context.Context, deviceID uuid.UUID, req UploadRequest) (*UploadResult, error) {
-	if !s.allow(deviceID) {
-		return nil, ErrRateLimited
-	}
 	logs := make([]NewLog, 0, len(req.Entries)+1)
 	for _, entry := range req.Entries {
 		log := NewLog{
@@ -137,25 +129,6 @@ func (s *Service) RunRetention(ctx context.Context, interval time.Duration, onEr
 		case <-ticker.C:
 		}
 	}
-}
-
-// allow applies a sliding-window, in-memory per-device rate limit.
-func (s *Service) allow(deviceID uuid.UUID) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	now := s.now()
-	recent := s.uploads[deviceID][:0]
-	for _, at := range s.uploads[deviceID] {
-		if now.Sub(at) < rateWindow {
-			recent = append(recent, at)
-		}
-	}
-	if len(recent) >= uploadsPerWindow {
-		s.uploads[deviceID] = recent
-		return false
-	}
-	s.uploads[deviceID] = append(recent, now)
-	return true
 }
 
 func levelsFrom(minimum string) []entlog.Level {

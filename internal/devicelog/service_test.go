@@ -63,28 +63,6 @@ func TestIngestStoresEntriesAndDroppedWarning(t *testing.T) {
 	}
 }
 
-func TestIngestRateLimitsPerDevice(t *testing.T) {
-	service := NewService(&repoStub{})
-	now := time.Unix(1_800_000_000, 0)
-	service.now = func() time.Time { return now }
-	device := uuid.New()
-	for i := 0; i < uploadsPerWindow; i++ {
-		if _, err := service.Ingest(context.Background(), device, UploadRequest{}); err != nil {
-			t.Fatalf("upload %d: %v", i, err)
-		}
-	}
-	if _, err := service.Ingest(context.Background(), device, UploadRequest{}); !errors.Is(err, ErrRateLimited) {
-		t.Fatalf("expected rate limit, got %v", err)
-	}
-	if _, err := service.Ingest(context.Background(), uuid.New(), UploadRequest{}); err != nil {
-		t.Fatal("other devices must not be limited")
-	}
-	now = now.Add(rateWindow)
-	if _, err := service.Ingest(context.Background(), device, UploadRequest{}); err != nil {
-		t.Fatalf("window should have slid: %v", err)
-	}
-}
-
 func TestListChecksOwnerFiltersLevelAndPaginates(t *testing.T) {
 	rows := []*ent.DeviceLog{{ID: 9}, {ID: 8}, {ID: 7}}
 	repo := &repoStub{owned: true, rows: rows}
