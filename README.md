@@ -35,6 +35,11 @@ cp .env.example .env
 See [`.env.example`](.env.example) for the full list of variables, their defaults,
 and descriptions — it is the single source of truth for configuration.
 
+One to know about before you deploy: `TRUSTED_PROXIES` lists the reverse proxies
+whose `X-Forwarded-For` header we believe when working out a client's IP. Leave
+it empty for local development. Behind a proxy (Render's, for example), set it
+to the proxy's addresses, or every visitor will look like the proxy in the logs.
+
 > The `.env` file is git-ignored. Never commit real credentials — keep `.env.example` as the shared template.
 
 ## Database

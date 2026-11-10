@@ -118,6 +118,12 @@ func main() {
 	middleware.UseSlogForGinDebug(logger)
 	r := gin.New()
 	r.HandleMethodNotAllowed = true
+	// Gin trusts every proxy by default, which lets any caller choose its own
+	// client IP through X-Forwarded-For. Only believe the proxies we list.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		logger.Error("invalid trusted proxies", "error", err)
+		os.Exit(1)
+	}
 	r.Use(middleware.RequestLogger(logger), gin.CustomRecovery(func(c *gin.Context, recovered any) {
 		logger.Error("panic recovered", "error", recovered)
 		if !c.Writer.Written() {
