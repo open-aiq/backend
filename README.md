@@ -2,13 +2,18 @@
 
 Air quality monitoring API built with Go, Gin, and Ent (PostgreSQL).
 
-> **Documentation:** See the [unified Open AIQ documentation](https://open-aiq.github.io/docs/) for system architecture, device guides, shared contracts, and the generated API reference. This README remains the source of truth for backend setup and commands.
+> **Documentation:** See the [unified Open AIQ documentation](https://docs.air-iq.net) for system architecture, device guides, shared contracts, and the generated API reference. This README remains the source of truth for backend setup and commands.
 
 ## Prerequisites
 
 - Go 1.26+
-- Docker (for PostgreSQL)
-- [`air`](https://github.com/air-verse/air) and [`swag`](https://github.com/swaggo/swag) for live reload and Swagger generation (only needed for `make dev` / `make swagger:gen`)
+- [Podman](https://podman.io) (for the local PostgreSQL container)
+
+Then run `make init` once. It installs the command-line tools we use
+([`atlas`](https://atlasgo.io), [`swag`](https://github.com/swaggo/swag),
+[`air`](https://github.com/air-verse/air) and [`hl`](https://github.com/pamburus/hl))
+into `.tools/`, at the versions pinned in [`aqua.yaml`](aqua.yaml), so you don't
+need to install them yourself.
 
 ## Commands
 
@@ -39,7 +44,7 @@ and descriptions — it is the single source of truth for configuration.
 
 ## Database
 
-PostgreSQL runs in a Docker container whose user, password, database, and port are
+PostgreSQL runs in a Podman container whose user, password, database, and port are
 derived from `DATABASE_URL` in your `.env`, so there's nothing to configure twice.
 Start it and manage it with the `db:*` targets in `make help`.
 
@@ -49,10 +54,20 @@ readable UTC filenames such as
 backups, run `make db:backups:clean`; it lists the files and asks for confirmation
 before deleting anything.
 
-The schema is managed with [Ent](https://entgo.io) and auto-migrated on startup, so
-no manual migration step is needed in development. After editing a schema in
-`internal/platform/ent/schema/`, regenerate the Ent client with `make orm:gen`
-(also run automatically by `make build`).
+The schema is defined with [Ent](https://entgo.io) and changed through versioned
+migrations in `internal/platform/migration/migrations/`, applied by
+[Atlas](https://atlasgo.io). The server never migrates the database itself, so
+you always know which step changed the schema:
+
+- Locally, run `make migration:apply` after starting the database and whenever
+  you pull new migrations.
+- In the container image, [`scripts/docker-entrypoint.sh`](scripts/docker-entrypoint.sh)
+  applies pending migrations and then starts the server, so a deploy migrates
+  first.
+
+After editing a schema in `internal/platform/ent/schema/`, regenerate the Ent
+client with `make orm:gen` (also run by `make build`), then create the migration
+with `make migration:gen name=<description>`.
 
 ### Existing device ownership backfill
 
@@ -84,16 +99,15 @@ The backend follows a hybrid domain-driven + hexagonal design.
   and the Ent client/schema.
 - **Request flow:** `routes → handler → service → repository (interface) → DB`.
   Handlers never touch the DB directly; services depend on the repository
-  *interface*, so implementations (Ent-backed or in-memory mock) are swappable.
-  (Note: `airquality` currently uses a mock repository; `device` is Ent-backed.)
+  *interface*, so implementations are swappable. Every domain uses its
+  Ent-backed repository today; tests swap in small stubs.
 - **Entrypoint:** `cmd/server/main.go` wires each domain's repository → service
   → handler and registers its routes.
 
 ## Releases
 
 Releases follow [SemVer](https://semver.org) with a `v` prefix (e.g. `v0.1.0`) and
-are cut **only from `main`**. `dev` is for integration; promote `dev` → `main`, then
-release from `main`.
+are cut **only from `main`**.
 
 ```
 make release
