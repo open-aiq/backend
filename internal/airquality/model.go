@@ -51,6 +51,10 @@ type HistoricalQuery struct {
 	Timeline string `form:"timeline" mod:"trim" validate:"required,oneof=daily weekly monthly yearly"`
 }
 
+// MaxCustomRangeDays is the longest custom range accepted, counting both the
+// start and end dates: a full leap year of daily buckets.
+const MaxCustomRangeDays = 366
+
 // CustomQuery holds query parameters for the custom date range endpoint.
 type CustomQuery struct {
 	StartDate string `form:"start_date" mod:"trim" validate:"required,datetime=2006-01-02"`

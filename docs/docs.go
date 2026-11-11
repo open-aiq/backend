@@ -111,7 +111,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns air quality data points between start_date and end_date",
+                "description": "Returns daily air quality averages between start_date and end_date (both included). The range can cover at most 366 days.",
                 "produces": [
                     "application/json"
                 ],
@@ -223,7 +223,7 @@ const docTemplate = `{
         },
         "/data": {
             "post": {
-                "description": "Stores one full sensor reading (particulate matter, AQI, temperature, optional location). The device authenticates with its X-Device-ID and X-Device-Key headers.",
+                "description": "Stores one full sensor reading (particulate matter, AQI, temperature, optional location). The device authenticates with its X-Device-ID and X-Device-Key headers. Limited to 30 uploads per device per minute.",
                 "consumes": [
                     "application/json"
                 ],
@@ -298,6 +298,12 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
@@ -1349,6 +1355,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/device.ListPublicDevicesResponse"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
                     }
                 }
             }
@@ -1389,6 +1401,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
                     }
                 }
             }
@@ -1426,6 +1444,12 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }
@@ -1489,6 +1513,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/problem.Problem"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1517,6 +1547,12 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/problem.Problem"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/problem.Problem"
                         }

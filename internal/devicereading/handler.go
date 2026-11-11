@@ -25,7 +25,7 @@ func NewHandler(service *Service, auth middleware.DeviceAuthenticator) *Handler 
 // Upload godoc
 //
 // @Summary Upload a sensor reading
-// @Description Stores one full sensor reading (particulate matter, AQI, temperature, optional location). The device authenticates with its X-Device-ID and X-Device-Key headers.
+// @Description Stores one full sensor reading (particulate matter, AQI, temperature, optional location). The device authenticates with its X-Device-ID and X-Device-Key headers. Limited to 30 uploads per device per minute.
 // @Tags Device Data
 // @Accept json
 // @Produce json
@@ -41,6 +41,7 @@ func NewHandler(service *Service, auth middleware.DeviceAuthenticator) *Handler 
 // @Failure 413 {object} problem.Problem
 // @Failure 415 {object} problem.Problem
 // @Failure 422 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
 //
 // @Router /data [post]

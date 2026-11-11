@@ -52,11 +52,6 @@ func (h *Handler) Upload(c *gin.Context) {
 	}
 	result, err := h.service.Ingest(c.Request.Context(), middleware.DeviceID(c), req)
 	if err != nil {
-		if errors.Is(err, ErrRateLimited) {
-			c.Header("Retry-After", "3600")
-			problem.Write(c, problem.TooManyRequests, "Too many log uploads from this device; retry later.")
-			return
-		}
 		_ = c.Error(err)
 		problem.Write(c, problem.Internal, "Failed to store logs.")
 		return

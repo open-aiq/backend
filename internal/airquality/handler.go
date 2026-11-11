@@ -2,6 +2,7 @@ package airquality
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -75,6 +76,7 @@ func (h *Handler) GetDeviceCurrent(c *gin.Context) {
 // @Failure 404 {object} problem.Problem
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/devices/{id}/current [get]
 func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -92,6 +94,7 @@ func (h *Handler) GetPublicDeviceCurrent(c *gin.Context) {
 // @Success 200 {object} PublicMapResponse
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/map/devices [get]
 func (h *Handler) GetPublicMapDevices(c *gin.Context) {
 	if !input.RejectUnknownQuery(c) {
@@ -202,6 +205,7 @@ func (h *Handler) GetDeviceHistorical(c *gin.Context) {
 // @Failure 404 {object} problem.Problem
 // @Failure 422 {object} problem.Problem
 // @Failure 500 {object} problem.Problem
+// @Failure 429 {object} problem.Problem
 // @Router /public/devices/{id}/historical [get]
 func (h *Handler) GetPublicDeviceHistorical(c *gin.Context) {
 	id, ok := deviceIDParam(c)
@@ -238,7 +242,7 @@ func (h *Handler) respondHistorical(c *gin.Context, deviceID *uuid.UUID, scope S
 // GetCustomRange godoc
 //
 // @Summary Get air quality data for a custom date range
-// @Description Returns air quality data points between start_date and end_date
+// @Description Returns daily air quality averages between start_date and end_date (both included). The range can cover at most 366 days.
 // @Tags Air Quality
 // @Produce json
 //
@@ -275,6 +279,11 @@ func (h *Handler) GetCustomRange(c *gin.Context) {
 
 	if end.Before(start) {
 		problem.Write(c, problem.Validation, "One or more query parameters are invalid.", problem.Violation{In: "query", Name: "end_date", Code: "gte", Detail: "end_date must be on or after start_date"})
+		return
+	}
+
+	if end.After(start.AddDate(0, 0, MaxCustomRangeDays-1)) {
+		problem.Write(c, problem.Validation, "One or more query parameters are invalid.", problem.Violation{In: "query", Name: "end_date", Code: "max_range", Detail: fmt.Sprintf("end_date must be within %d days of start_date", MaxCustomRangeDays)})
 		return
 	}
 

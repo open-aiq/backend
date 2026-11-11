@@ -42,6 +42,14 @@ const (
 	idleTimeout       = 120 * time.Second
 )
 
+// Budget per client IP across the unauthenticated /public routes. A map page
+// load makes a handful of calls, so this leaves room for people sharing an
+// address while stopping scrapers from hammering the database.
+const (
+	publicRequestsPerWindow = 120
+	publicRateWindow        = time.Minute
+)
+
 // @title Air Quality API
 // @version 1.0
 // @description Air quality monitoring API
@@ -144,8 +152,16 @@ func main() {
 	firmwareHandler.RegisterRoutes(authenticated)
 	logHandler.RegisterRoutes(authenticated)
 	accountHandler.RegisterRoutes(authenticated)
-	deviceHandler.RegisterPublicRoutes(api)
-	handler.RegisterPublicRoutes(api)
+	// The /public routes need no sign-in, so they share one per-IP budget. The
+	// limiter is in memory: the budget is per server instance and resets on
+	// restart. It is keyed by Gin's client IP, so it is only as accurate as
+	// TRUSTED_PROXIES; if the proxy in front of us is not trusted, every
+	// visitor shares the proxy's address and this one budget.
+	public := api.Group("", middleware.RateLimit(
+		middleware.NewRateLimiter(publicRequestsPerWindow, publicRateWindow), middleware.ClientIPKey,
+	))
+	deviceHandler.RegisterPublicRoutes(public)
+	handler.RegisterPublicRoutes(public)
 	readingHandler.RegisterRoutes(api)
 	firmwareHandler.RegisterDeviceRoutes(api, deviceService)
 	firmwareHandler.RegisterPublishRoutes(api, cfg.FirmwarePublishToken)
