@@ -8,3 +8,5 @@ docs/docs.go.bak
 *.md
 Makefile
 scripts/release.sh
+backups/
+.tools/

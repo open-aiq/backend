@@ -16,7 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/server ./cmd/server
 
 # --- Pull the Atlas CLI from its official image ---
-FROM arigaio/atlas:latest AS atlas
+# Keep the version in sync with ariga/atlas in aqua.yaml.
+FROM arigaio/atlas:1.3.0 AS atlas
 
 # --- Final runtime image ---
 FROM alpine:3.20

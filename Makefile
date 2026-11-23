@@ -1,7 +1,7 @@
 ENGINE := podman
 CONTAINER := openaiq-postgres
 CONTAINER_VOLUME := openaiq-pgdata
-DB_VERION := 18
+DB_VERSION := 18
 BACKUP_DIR ?= backups
 TOOLS_DIR    := $(CURDIR)/.tools
 AQUA_VERSION := v2.66.0
@@ -162,7 +162,7 @@ db\:up: require-database-url
 	  --shm-size=256m \
 	  --health-cmd="pg_isready -U $$user -d $$db" \
 	  --health-interval=10s --health-timeout=5s --health-retries=5 \
-	  postgres:$(DB_VERION)-alpine; \
+	  postgres:$(DB_VERSION)-alpine; \
 	echo "Waiting for $(CONTAINER) to become healthy..."; \
 	attempt=0; \
 	while :; do \
