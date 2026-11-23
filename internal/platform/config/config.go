@@ -25,6 +25,10 @@ type Config struct {
 	CORSAllowedOrigins     []string `env:"CORS_ALLOWED_ORIGINS,required" envSeparator:"," mod:"dive,trim" validate:"required,min=1,dive,http_origin"`
 	ClerkSecretKey         string   `env:"CLERK_SECRET_KEY,required" mod:"trim" validate:"required"`
 	ClerkAuthorizedParties []string `env:"CLERK_AUTHORIZED_PARTIES,required" envSeparator:"," mod:"dive,trim" validate:"required,min=1,dive,http_origin"`
+	// TrustedProxies lists the reverse proxies (IPs or CIDRs) whose
+	// X-Forwarded-For header is believed when working out the client IP. Empty
+	// trusts none, so the client IP is the address that opened the connection.
+	TrustedProxies []string `env:"TRUSTED_PROXIES,required" envSeparator:"," mod:"dive,trim" validate:"dive,cidr|ip"`
 	// ClerkAllowNativeClients accepts Clerk session tokens without an azp claim,
 	// which is how tokens issued to the mobile app look.
 	ClerkAllowNativeClients bool `env:"CLERK_ALLOW_NATIVE_CLIENTS,required"`

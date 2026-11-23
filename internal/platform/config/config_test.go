@@ -14,6 +14,7 @@ func validEnvironment() []string {
 		"CLERK_SECRET_KEY= secret ",
 		"CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://openaiq.org",
 		"CLERK_ALLOW_NATIVE_CLIENTS=true",
+		"TRUSTED_PROXIES= 10.0.0.0/8 , 192.0.2.7 ",
 		"FIRMWARE_PUBLISH_TOKEN=0123456789abcdef0123456789abcdef",
 		"DB_MAX_OPEN_CONNS=25", "DB_MAX_IDLE_CONNS=5", "DB_CONN_MAX_LIFETIME=5m",
 	}
@@ -48,6 +49,8 @@ func TestParseRejectsInvalidConfiguration(t *testing.T) {
 		"wildcard with origin":    func(env []string) []string { return replace(env, "CORS_ALLOWED_ORIGINS", "*,https://openaiq.org") },
 		"idle exceeds open":       func(env []string) []string { return replace(env, "DB_MAX_IDLE_CONNS", "26") },
 		"short publish token":     func(env []string) []string { return replace(env, "FIRMWARE_PUBLISH_TOKEN", "short") },
+		"invalid trusted proxy":   func(env []string) []string { return replace(env, "TRUSTED_PROXIES", "10.0.0.0/8,render") },
+		"missing trusted proxies": func(env []string) []string { return remove(env, "TRUSTED_PROXIES") },
 		"invalid native flag":     func(env []string) []string { return replace(env, "CLERK_ALLOW_NATIVE_CLIENTS", "maybe") },
 	}
 	for name, mutate := range tests {
@@ -56,6 +59,24 @@ func TestParseRejectsInvalidConfiguration(t *testing.T) {
 				t.Fatal("expected an error")
 			}
 		})
+	}
+}
+
+func TestParseTrustedProxies(t *testing.T) {
+	cfg, err := parse(validEnvironment())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.TrustedProxies) != 2 || cfg.TrustedProxies[0] != "10.0.0.0/8" || cfg.TrustedProxies[1] != "192.0.2.7" {
+		t.Fatalf("trusted proxies = %q", cfg.TrustedProxies)
+	}
+
+	cfg, err = parse(replace(validEnvironment(), "TRUSTED_PROXIES", ""))
+	if err != nil {
+		t.Fatalf("an empty list must be accepted: %v", err)
+	}
+	if len(cfg.TrustedProxies) != 0 {
+		t.Fatalf("trusted proxies = %q, want none", cfg.TrustedProxies)
 	}
 }
 
@@ -79,4 +100,14 @@ func replace(environment []string, key, value string) []string {
 		}
 	}
 	return append(out, prefix+value)
+}
+
+func remove(environment []string, key string) []string {
+	out := make([]string, 0, len(environment))
+	for _, entry := range environment {
+		if !strings.HasPrefix(entry, key+"=") {
+			out = append(out, entry)
+		}
+	}
+	return out
 }
